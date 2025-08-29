@@ -23,8 +23,8 @@ export const PaymentProgress = ({
   };
 
   // Общий прогресс учитывает все внесенные платежи (включая депозит)
-  // Депозит входит в общую сумму договора, поэтому берем максимальное значение
-  const totalWithDeposit = Math.max(totalPaid, depositPaid);
+  // Депозит суммируется с общими платежами
+  const totalWithDeposit = (totalPaid || 0) + (depositPaid || 0);
   const mainProgress = contractAmount > 0 ? (totalWithDeposit / contractAmount) * 100 : 0;
   const depositProgress = depositTarget > 0 ? (depositPaid / depositTarget) * 100 : 0;
 
