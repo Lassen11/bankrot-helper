@@ -15,6 +15,7 @@ interface PaymentScheduleProps {
   installmentPeriod: number;
   createdAt: string;
   onRemainingPaymentsChange?: (remaining: number, completionDate: Date) => void;
+  onPaymentUpdate?: () => void; // Callback для обновления данных клиента
 }
 
 interface Payment {
@@ -34,7 +35,8 @@ export const PaymentSchedule = ({
   monthlyPayment,
   installmentPeriod,
   createdAt,
-  onRemainingPaymentsChange
+  onRemainingPaymentsChange,
+  onPaymentUpdate
 }: PaymentScheduleProps) => {
   const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -139,28 +141,92 @@ export const PaymentSchedule = ({
     const payment = payments.find(p => p.id === paymentId);
     if (!payment) return;
 
-    const { error } = await supabase
+    const newCompletedStatus = !payment.is_completed;
+    const paymentAmount = payment.custom_amount ?? payment.original_amount;
+
+    // Обновляем статус платежа
+    const { error: paymentError } = await supabase
       .from('payments')
       .update({
-        is_completed: !payment.is_completed,
-        completed_at: !payment.is_completed ? new Date().toISOString() : null
+        is_completed: newCompletedStatus,
+        completed_at: newCompletedStatus ? new Date().toISOString() : null
       })
       .eq('id', paymentId);
 
-    if (error) {
+    if (paymentError) {
       toast.error('Ошибка обновления статуса платежа');
       return;
     }
 
+    // Получаем текущие данные клиента для расчета новой суммы
+    const { data: clientData, error: clientFetchError } = await supabase
+      .from('clients')
+      .select('total_paid, deposit_paid')
+      .eq('id', clientId)
+      .single();
+
+    if (clientFetchError || !clientData) {
+      toast.error('Ошибка получения данных клиента');
+      return;
+    }
+
+    // Рассчитываем новую общую сумму оплаты
+    let newTotalPaid = clientData.total_paid || 0;
+    
+    // Определяем, это депозит или обычный платеж
+    if (payment.payment_type === 'first') {
+      // Для первого платежа обновляем deposit_paid
+      let newDepositPaid = clientData.deposit_paid || 0;
+      
+      if (newCompletedStatus) {
+        newDepositPaid += paymentAmount;
+      } else {
+        newDepositPaid = Math.max(0, newDepositPaid - paymentAmount);
+      }
+
+      const { error: clientUpdateError } = await supabase
+        .from('clients')
+        .update({ deposit_paid: newDepositPaid })
+        .eq('id', clientId);
+
+      if (clientUpdateError) {
+        toast.error('Ошибка обновления депозита');
+        return;
+      }
+    } else {
+      // Для обычных платежей обновляем total_paid
+      if (newCompletedStatus) {
+        newTotalPaid += paymentAmount;
+      } else {
+        newTotalPaid = Math.max(0, newTotalPaid - paymentAmount);
+      }
+
+      const { error: clientUpdateError } = await supabase
+        .from('clients')
+        .update({ total_paid: newTotalPaid })
+        .eq('id', clientId);
+
+      if (clientUpdateError) {
+        toast.error('Ошибка обновления суммы оплаты');
+        return;
+      }
+    }
+
+    // Обновляем локальное состояние платежей
     const updatedPayments = payments.map(p => 
       p.id === paymentId 
-        ? { ...p, is_completed: !p.is_completed }
+        ? { ...p, is_completed: newCompletedStatus }
         : p
     );
     setPayments(updatedPayments);
     
     // Пересчитываем статистику
     updatePaymentStats(updatedPayments);
+    
+    // Уведомляем родительский компонент об обновлении
+    onPaymentUpdate?.();
+    
+    toast.success(newCompletedStatus ? 'Платеж отмечен как выполненный' : 'Платеж отмечен как невыполненный');
   };
 
   const updatePaymentStats = (updatedPayments: Payment[]) => {

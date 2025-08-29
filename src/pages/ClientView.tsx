@@ -279,6 +279,10 @@ export default function ClientView() {
               setRemainingPayments(remaining);
               setCompletionDate(completion);
             }}
+            onPaymentUpdate={() => {
+              // Перезагружаем данные клиента после обновления платежа
+              fetchClient();
+            }}
           />
 
           {/* Payment Management */}
