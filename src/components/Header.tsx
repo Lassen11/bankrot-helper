@@ -1,12 +1,12 @@
 import { Scale, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-
 export const Header = () => {
-  const { user, signOut } = useAuth();
-
-  return (
-    <header className="bg-card border-b border-border shadow-sm">
+  const {
+    user,
+    signOut
+  } = useAuth();
+  return <header className="bg-card border-b border-border shadow-sm">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -14,9 +14,7 @@ export const Header = () => {
               <Scale className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-primary">
-                Банкротство физлиц
-              </h1>
+              <h1 className="text-2xl font-bold text-primary">Спасение</h1>
               <p className="text-sm text-muted-foreground">
                 Управление клиентами
               </p>
@@ -33,6 +31,5 @@ export const Header = () => {
           </div>
         </div>
       </div>
-    </header>
-  );
+    </header>;
 };
