@@ -74,14 +74,30 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
     const total = client.contract_amount;
     const percentage = (totalPaid / total) * 100;
     
-    // Проверяем просроченные платежи
+    // Проверяем просроченные ежемесячные платежи (исключаем первый платеж)
     const today = new Date();
-    const currentDay = today.getDate();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    const clientCreatedDate = new Date(client.created_at);
     
-    // Если сегодняшний день больше дня платежа в текущем месяце, значит платеж просрочен
-    const isOverdue = currentDay > client.payment_day && percentage < 100;
+    // Вычисляем, сколько месяцев прошло с момента создания клиента
+    const monthsPassed = (today.getFullYear() - clientCreatedDate.getFullYear()) * 12 + 
+                        (today.getMonth() - clientCreatedDate.getMonth());
+    
+    // Проверяем просрочку только если прошел хотя бы один месяц
+    let isOverdue = false;
+    if (monthsPassed > 0) {
+      // Проверяем, прошел ли срок платежа в текущем месяце
+      const currentDay = today.getDate();
+      const hasCurrentMonthPaymentPassed = currentDay > client.payment_day;
+      
+      // Если прошел срок платежа в текущем месяце или есть предыдущие неоплаченные месяцы
+      // и общий процент оплаты не достиг 100%
+      if ((hasCurrentMonthPaymentPassed || monthsPassed > 1) && percentage < 100) {
+        // Дополнительная проверка: убеждаемся, что не все ежемесячные платежи оплачены
+        // Простая проверка: если оплачено меньше чем первый платеж + (количество прошедших месяцев * ежемесячный платеж)
+        const expectedPaid = client.first_payment + (Math.min(monthsPassed, client.installment_period) * client.monthly_payment);
+        isOverdue = totalPaid < expectedPaid;
+      }
+    }
     
     if (isOverdue) {
       return { text: "Просрочен", variant: "destructive" as const, color: "bg-red-500" };
