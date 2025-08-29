@@ -173,43 +173,21 @@ export const PaymentSchedule = ({
     // Рассчитываем новую общую сумму оплаты
     let newTotalPaid = clientData.total_paid || 0;
     
-    // Определяем, это депозит или обычный платеж
-    if (payment.payment_type === 'first') {
-      // Для первого платежа обновляем deposit_paid
-      let newDepositPaid = clientData.deposit_paid || 0;
-      
-      if (newCompletedStatus) {
-        newDepositPaid += paymentAmount;
-      } else {
-        newDepositPaid = Math.max(0, newDepositPaid - paymentAmount);
-      }
-
-      const { error: clientUpdateError } = await supabase
-        .from('clients')
-        .update({ deposit_paid: newDepositPaid })
-        .eq('id', clientId);
-
-      if (clientUpdateError) {
-        toast.error('Ошибка обновления депозита');
-        return;
-      }
+    // Все платежи (включая первый) обновляют только total_paid
+    if (newCompletedStatus) {
+      newTotalPaid += paymentAmount;
     } else {
-      // Для обычных платежей обновляем total_paid
-      if (newCompletedStatus) {
-        newTotalPaid += paymentAmount;
-      } else {
-        newTotalPaid = Math.max(0, newTotalPaid - paymentAmount);
-      }
+      newTotalPaid = Math.max(0, newTotalPaid - paymentAmount);
+    }
 
-      const { error: clientUpdateError } = await supabase
-        .from('clients')
-        .update({ total_paid: newTotalPaid })
-        .eq('id', clientId);
+    const { error: clientUpdateError } = await supabase
+      .from('clients')
+      .update({ total_paid: newTotalPaid })
+      .eq('id', clientId);
 
-      if (clientUpdateError) {
-        toast.error('Ошибка обновления суммы оплаты');
-        return;
-      }
+    if (clientUpdateError) {
+      toast.error('Ошибка обновления суммы оплаты');
+      return;
     }
 
     // Обновляем локальное состояние платежей
