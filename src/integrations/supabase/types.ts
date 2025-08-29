@@ -18,34 +18,43 @@ export type Database = {
         Row: {
           contract_amount: number
           created_at: string | null
+          deposit_paid: number | null
+          deposit_target: number | null
           first_payment: number
           full_name: string
           id: string
           installment_period: number
           monthly_payment: number
           remaining_amount: number
+          total_paid: number | null
           updated_at: string | null
         }
         Insert: {
           contract_amount: number
           created_at?: string | null
+          deposit_paid?: number | null
+          deposit_target?: number | null
           first_payment: number
           full_name: string
           id?: string
           installment_period: number
           monthly_payment: number
           remaining_amount?: number
+          total_paid?: number | null
           updated_at?: string | null
         }
         Update: {
           contract_amount?: number
           created_at?: string | null
+          deposit_paid?: number | null
+          deposit_target?: number | null
           first_payment?: number
           full_name?: string
           id?: string
           installment_period?: number
           monthly_payment?: number
           remaining_amount?: number
+          total_paid?: number | null
           updated_at?: string | null
         }
         Relationships: []
