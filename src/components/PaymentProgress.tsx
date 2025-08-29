@@ -23,7 +23,9 @@ export const PaymentProgress = ({
   };
 
   // Общий прогресс учитывает все внесенные платежи (включая депозит)
-  const mainProgress = contractAmount > 0 ? (totalPaid / contractAmount) * 100 : 0;
+  // Депозит входит в общую сумму договора, поэтому берем максимальное значение
+  const totalWithDeposit = Math.max(totalPaid, depositPaid);
+  const mainProgress = contractAmount > 0 ? (totalWithDeposit / contractAmount) * 100 : 0;
   const depositProgress = depositTarget > 0 ? (depositPaid / depositTarget) * 100 : 0;
 
   return (
@@ -64,7 +66,7 @@ export const PaymentProgress = ({
         />
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">
-            Внесено: {formatAmount(totalPaid)}
+            Внесено: {formatAmount(totalWithDeposit)}
           </span>
           <span className="text-muted-foreground">
             Всего: {formatAmount(contractAmount)}
@@ -77,7 +79,7 @@ export const PaymentProgress = ({
         <div className="flex justify-between items-center">
           <span className="text-sm font-medium">Остаток к оплате:</span>
           <span className="text-lg font-semibold text-primary">
-            {formatAmount(Math.max(0, contractAmount - totalPaid))}
+            {formatAmount(Math.max(0, contractAmount - totalWithDeposit))}
           </span>
         </div>
       </div>
