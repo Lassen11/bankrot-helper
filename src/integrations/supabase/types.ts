@@ -62,6 +62,59 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          custom_amount: number | null
+          due_date: string
+          id: string
+          is_completed: boolean
+          original_amount: number
+          payment_number: number
+          payment_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          custom_amount?: number | null
+          due_date: string
+          id?: string
+          is_completed?: boolean
+          original_amount: number
+          payment_number: number
+          payment_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          custom_amount?: number | null
+          due_date?: string
+          id?: string
+          is_completed?: boolean
+          original_amount?: number
+          payment_number?: number
+          payment_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

@@ -269,6 +269,7 @@ export default function ClientView() {
 
           {/* Payment Schedule */}
           <PaymentSchedule
+            clientId={client.id}
             contractAmount={client.contract_amount}
             firstPayment={client.first_payment}
             monthlyPayment={client.monthly_payment}
