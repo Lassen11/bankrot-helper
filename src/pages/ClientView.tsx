@@ -36,6 +36,8 @@ export default function ClientView() {
     total_paid: 0,
     deposit_paid: 0,
   });
+  const [remainingPayments, setRemainingPayments] = useState(0);
+  const [completionDate, setCompletionDate] = useState<Date>(new Date());
 
   useEffect(() => {
     if (id) {
@@ -61,6 +63,16 @@ export default function ClientView() {
         total_paid: data.total_paid || 0,
         deposit_paid: data.deposit_paid || 0,
       });
+      
+      // Инициализируем количество оставшихся платежей
+      const totalPayments = data.installment_period + 1; // +1 для первого платежа
+      setRemainingPayments(totalPayments);
+      
+      // Рассчитываем дату завершения (последний платеж)
+      const startDate = new Date(data.created_at);
+      const endDate = new Date(startDate);
+      endDate.setMonth(startDate.getMonth() + data.installment_period);
+      setCompletionDate(endDate);
     } catch (error) {
       toast.error('Произошла ошибка');
     } finally {
@@ -206,6 +218,14 @@ export default function ClientView() {
                   <span className="text-muted-foreground">Ежемесячный платеж:</span>
                   <p className="font-semibold">{formatAmount(client.monthly_payment)}</p>
                 </div>
+                <div>
+                  <span className="text-muted-foreground">Осталось платежей:</span>
+                  <p className="font-semibold">{remainingPayments}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Завершение процедуры:</span>
+                  <p className="font-semibold">{completionDate.toLocaleDateString('ru-RU')}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -217,6 +237,10 @@ export default function ClientView() {
             monthlyPayment={client.monthly_payment}
             installmentPeriod={client.installment_period}
             createdAt={client.created_at}
+            onRemainingPaymentsChange={(remaining, completion) => {
+              setRemainingPayments(remaining);
+              setCompletionDate(completion);
+            }}
           />
 
           {/* Payment Management */}
