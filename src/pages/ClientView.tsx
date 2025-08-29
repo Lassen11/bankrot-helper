@@ -33,7 +33,6 @@ export default function ClientView() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-    total_paid: 0,
     deposit_paid: 0,
   });
   const [remainingPayments, setRemainingPayments] = useState(0);
@@ -76,7 +75,6 @@ export default function ClientView() {
 
       setClient(data);
       setEditData({
-        total_paid: data.total_paid || 0,
         deposit_paid: data.deposit_paid || 0,
       });
       
@@ -106,13 +104,12 @@ export default function ClientView() {
 
     try {
       // Рассчитываем новый остаток с учетом депозита
-      const totalPaidAmount = editData.total_paid + editData.deposit_paid;
+      const totalPaidAmount = (client.total_paid || 0) + editData.deposit_paid;
       const newRemainingAmount = Math.max(0, client.contract_amount - totalPaidAmount);
       
       const { error } = await supabase
         .from('clients')
         .update({
-          total_paid: editData.total_paid,
           deposit_paid: editData.deposit_paid,
           remaining_amount: newRemainingAmount,
         })
@@ -129,7 +126,7 @@ export default function ClientView() {
       
       const newCompletionDate = calculateCompletionDate(
         client.contract_amount,
-        editData.total_paid,
+        client.total_paid || 0,
         editData.deposit_paid,
         client.monthly_payment
       );
@@ -301,11 +298,10 @@ export default function ClientView() {
                       <Save className="h-4 w-4 mr-2" />
                       Сохранить
                     </Button>
-                    <Button 
+                     <Button 
                       onClick={() => {
                         setIsEditing(false);
                         setEditData({
-                          total_paid: client.total_paid || 0,
                           deposit_paid: client.deposit_paid || 0,
                         });
                       }} 
@@ -320,23 +316,7 @@ export default function ClientView() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="total_paid">Общая внесенная сумма (₽)</Label>
-                  <Input
-                    id="total_paid"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={isEditing ? editData.total_paid : client.total_paid || 0}
-                    onChange={(e) => setEditData(prev => ({ 
-                      ...prev, 
-                      total_paid: parseFloat(e.target.value) || 0 
-                    }))}
-                    readOnly={!isEditing}
-                    className={!isEditing ? "bg-muted cursor-default" : ""}
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <Label htmlFor="deposit_paid">Внесенная сумма депозита (₽)</Label>
                   <Input
