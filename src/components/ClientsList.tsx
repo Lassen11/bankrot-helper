@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, Eye } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 
 interface Client {
   id: string;
@@ -14,7 +16,11 @@ interface Client {
   first_payment: number;
   monthly_payment: number;
   remaining_amount: number;
+  total_paid: number;
+  deposit_paid: number;
+  deposit_target: number;
   created_at: string;
+  updated_at: string;
 }
 
 interface ClientsListProps {
@@ -62,12 +68,12 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
     }).format(amount);
   };
 
-  const getPaymentStatus = (remaining: number, total: number) => {
-    const percentage = ((total - remaining) / total) * 100;
-    if (percentage >= 100) return { text: "Оплачено", variant: "default" as const, color: "success" };
-    if (percentage >= 50) return { text: "Больше половины", variant: "secondary" as const, color: "accent" };
-    if (percentage > 0) return { text: "В процессе", variant: "outline" as const, color: "warning" };
-    return { text: "Не начато", variant: "destructive" as const, color: "destructive" };
+  const getPaymentStatus = (totalPaid: number, total: number) => {
+    const percentage = (totalPaid / total) * 100;
+    if (percentage >= 100) return { text: "Оплачено", variant: "default" as const, color: "bg-green-500" };
+    if (percentage >= 50) return { text: "Почти готово", variant: "secondary" as const, color: "bg-yellow-500" };
+    if (percentage > 0) return { text: "В процессе", variant: "outline" as const, color: "bg-blue-500" };
+    return { text: "Не начато", variant: "destructive" as const, color: "bg-red-500" };
   };
 
   if (loading) {
@@ -107,7 +113,7 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
       ) : (
         <div className="grid gap-4">
           {filteredClients.map((client) => {
-            const status = getPaymentStatus(client.remaining_amount, client.contract_amount);
+            const status = getPaymentStatus(client.total_paid || 0, client.contract_amount);
             return (
               <Card key={client.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
@@ -115,9 +121,18 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
                     <CardTitle className="text-lg text-primary">
                       {client.full_name}
                     </CardTitle>
-                    <Badge variant={status.variant} className={`bg-${status.color} text-${status.color}-foreground`}>
-                      {status.text}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={status.variant}>
+                        <div className={`w-2 h-2 rounded-full ${status.color} mr-2`}></div>
+                        {status.text}
+                      </Badge>
+                      <Link to={`/client/${client.id}`}>
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-2" />
+                          Просмотр
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -129,27 +144,27 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
                       </p>
                     </div>
                     <div>
-                      <p className="font-medium text-muted-foreground">Рассрочка</p>
-                      <p className="text-lg font-semibold">
-                        {client.installment_period} мес.
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-muted-foreground">Первый платеж</p>
-                      <p className="text-lg font-semibold">
-                        {formatAmount(client.first_payment)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-muted-foreground">Ежемесячно</p>
-                      <p className="text-lg font-semibold">
-                        {formatAmount(client.monthly_payment)}
+                      <p className="font-medium text-muted-foreground">Внесено</p>
+                      <p className="text-lg font-semibold text-green-600">
+                        {formatAmount(client.total_paid || 0)}
                       </p>
                     </div>
                     <div>
                       <p className="font-medium text-muted-foreground">Остаток</p>
                       <p className="text-lg font-semibold text-accent">
                         {formatAmount(client.remaining_amount)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-muted-foreground">Рассрочка</p>
+                      <p className="text-lg font-semibold">
+                        {client.installment_period} мес.
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-muted-foreground">Ежемесячно</p>
+                      <p className="text-lg font-semibold">
+                        {formatAmount(client.monthly_payment)}
                       </p>
                     </div>
                     <div>

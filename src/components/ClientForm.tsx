@@ -59,7 +59,10 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             installment_period: parseInt(formData.installmentPeriod),
             first_payment: parseFloat(formData.firstPayment),
             monthly_payment: monthlyPayment,
-            remaining_amount: remainingAmount
+            remaining_amount: remainingAmount,
+            total_paid: 0,
+            deposit_paid: 0,
+            deposit_target: 50000
           }
         ]);
 
