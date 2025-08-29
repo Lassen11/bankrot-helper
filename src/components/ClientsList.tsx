@@ -19,6 +19,7 @@ interface Client {
   total_paid: number;
   deposit_paid: number;
   deposit_target: number;
+  payment_day: number;
   created_at: string;
   updated_at: string;
 }
@@ -68,8 +69,24 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
     }).format(amount);
   };
 
-  const getPaymentStatus = (totalPaid: number, total: number) => {
+  const getPaymentStatus = (client: Client) => {
+    const totalPaid = client.total_paid || 0;
+    const total = client.contract_amount;
     const percentage = (totalPaid / total) * 100;
+    
+    // Проверяем просроченные платежи
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // Если сегодняшний день больше дня платежа в текущем месяце, значит платеж просрочен
+    const isOverdue = currentDay > client.payment_day && percentage < 100;
+    
+    if (isOverdue) {
+      return { text: "Просрочен", variant: "destructive" as const, color: "bg-red-500" };
+    }
+    
     if (percentage >= 100) return { text: "Оплачено", variant: "default" as const, color: "bg-green-500" };
     if (percentage >= 50) return { text: "Почти готово", variant: "secondary" as const, color: "bg-yellow-500" };
     if (percentage > 0) return { text: "В процессе", variant: "outline" as const, color: "bg-blue-500" };
@@ -113,12 +130,13 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
       ) : (
         <div className="grid gap-4">
           {filteredClients.map((client) => {
-            const status = getPaymentStatus(client.total_paid || 0, client.contract_amount);
+            const status = getPaymentStatus(client);
+            const isOverdue = status.text === "Просрочен";
             return (
-              <Card key={client.id} className="hover:shadow-md transition-shadow">
+              <Card key={client.id} className={`hover:shadow-md transition-shadow ${isOverdue ? 'border-red-500 bg-red-50/50' : ''}`}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg text-primary">
+                    <CardTitle className={`text-lg ${isOverdue ? 'text-red-600' : 'text-primary'}`}>
                       {client.full_name}
                     </CardTitle>
                     <div className="flex items-center gap-2">
@@ -134,6 +152,11 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
                       </Link>
                     </div>
                   </div>
+                  {isOverdue && (
+                    <p className="text-sm text-red-600 font-medium">
+                      Платеж должен был быть внесен до {client.payment_day} числа
+                    </p>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -168,9 +191,9 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
                       </p>
                     </div>
                     <div>
-                      <p className="font-medium text-muted-foreground">Создан</p>
-                      <p className="text-sm">
-                        {new Date(client.created_at).toLocaleDateString('ru-RU')}
+                      <p className="font-medium text-muted-foreground">День платежа</p>
+                      <p className="text-lg font-semibold">
+                        {client.payment_day} число
                       </p>
                     </div>
                   </div>

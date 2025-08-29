@@ -18,7 +18,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     contractAmount: "",
     installmentPeriod: "",
     firstPayment: "",
-    remainingAmount: ""
+    remainingAmount: "",
+    paymentDay: "1"
   });
 
   // Автоматический расчет ежемесячного платежа
@@ -74,6 +75,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             total_paid: 0,
             deposit_paid: 0,
             deposit_target: 50000,
+            payment_day: parseInt(formData.paymentDay),
             user_id: user.id
           }
         ]);
@@ -90,7 +92,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         contractAmount: "",
         installmentPeriod: "",
         firstPayment: "",
-        remainingAmount: ""
+        remainingAmount: "",
+        paymentDay: "1"
       });
 
       onClientAdded();
@@ -168,6 +171,25 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             </div>
 
             <div>
+              <Label htmlFor="paymentDay">День ежемесячного платежа</Label>
+              <Input
+                id="paymentDay"
+                type="number"
+                min="1"
+                max="31"
+                value={formData.paymentDay}
+                onChange={(e) => handleInputChange("paymentDay", e.target.value)}
+                placeholder="1"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                День месяца для ежемесячного платежа (1-31)
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label htmlFor="monthlyPayment">Ежемесячный платеж (₽)</Label>
               <div className="relative">
                 <Input
@@ -186,26 +208,26 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
                 (Сумма договора - Первый платеж) ÷ Месяцы рассрочки
               </p>
             </div>
-          </div>
 
-          <div>
-            <Label htmlFor="remainingAmount">Остаток к оплате (₽)</Label>
-            <div className="relative">
-              <Input
-                id="remainingAmount"
-                type="text"
-                value={remainingAmount > 0 ? remainingAmount.toFixed(2) : "0.00"}
-                readOnly
-                className="bg-muted cursor-default"
-                placeholder="Рассчитывается автоматически"
-              />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
-                авто
+            <div>
+              <Label htmlFor="remainingAmount">Остаток к оплате (₽)</Label>
+              <div className="relative">
+                <Input
+                  id="remainingAmount"
+                  type="text"
+                  value={remainingAmount > 0 ? remainingAmount.toFixed(2) : "0.00"}
+                  readOnly
+                  className="bg-muted cursor-default"
+                  placeholder="Рассчитывается автоматически"
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
+                  авто
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Сумма договора - Первый платеж
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Сумма договора - Первый платеж
-            </p>
           </div>
 
           <Button

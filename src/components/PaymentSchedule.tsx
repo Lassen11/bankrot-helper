@@ -13,6 +13,7 @@ interface PaymentScheduleProps {
   firstPayment: number;
   monthlyPayment: number;
   installmentPeriod: number;
+  paymentDay: number;
   createdAt: string;
   onRemainingPaymentsChange?: (remaining: number, completionDate: Date) => void;
   onPaymentUpdate?: () => void; // Callback для обновления данных клиента
@@ -34,6 +35,7 @@ export const PaymentSchedule = ({
   firstPayment,
   monthlyPayment,
   installmentPeriod,
+  paymentDay,
   createdAt,
   onRemainingPaymentsChange,
   onPaymentUpdate
@@ -94,7 +96,7 @@ export const PaymentSchedule = ({
     const paymentsToCreate = [];
     const startDate = new Date(createdAt);
     
-    // Первый платеж
+    // Первый платеж - остается без изменений
     paymentsToCreate.push({
       client_id: clientId,
       user_id: user.id,
@@ -104,10 +106,20 @@ export const PaymentSchedule = ({
       payment_type: 'first'
     });
 
-    // Ежемесячные платежи
+    // Ежемесячные платежи - используем указанный день месяца
     for (let i = 1; i <= installmentPeriod; i++) {
       const paymentDate = new Date(startDate);
       paymentDate.setMonth(startDate.getMonth() + i);
+      
+      // Устанавливаем конкретный день месяца
+      paymentDate.setDate(paymentDay);
+      
+      // Если указанный день не существует в данном месяце (например, 31 февраля)
+      // то date автоматически скорректируется на последний день месяца
+      if (paymentDate.getDate() !== paymentDay) {
+        // Устанавливаем последний день месяца
+        paymentDate.setDate(0);
+      }
       
       paymentsToCreate.push({
         client_id: clientId,

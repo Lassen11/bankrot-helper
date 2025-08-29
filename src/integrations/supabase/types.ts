@@ -25,6 +25,7 @@ export type Database = {
           id: string
           installment_period: number
           monthly_payment: number
+          payment_day: number
           remaining_amount: number
           total_paid: number | null
           updated_at: string | null
@@ -40,6 +41,7 @@ export type Database = {
           id?: string
           installment_period: number
           monthly_payment: number
+          payment_day?: number
           remaining_amount?: number
           total_paid?: number | null
           updated_at?: string | null
@@ -55,6 +57,7 @@ export type Database = {
           id?: string
           installment_period?: number
           monthly_payment?: number
+          payment_day?: number
           remaining_amount?: number
           total_paid?: number | null
           updated_at?: string | null
