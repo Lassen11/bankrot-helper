@@ -22,6 +22,7 @@ export const PaymentProgress = ({
     }).format(amount);
   };
 
+  // Общий прогресс учитывает все внесенные платежи (включая депозит)
   const mainProgress = contractAmount > 0 ? (totalPaid / contractAmount) * 100 : 0;
   const depositProgress = depositTarget > 0 ? (depositPaid / depositTarget) * 100 : 0;
 

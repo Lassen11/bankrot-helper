@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaymentProgress } from "@/components/PaymentProgress";
+import { PaymentSchedule } from "@/components/PaymentSchedule";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Edit, Save, X } from "lucide-react";
@@ -166,7 +167,7 @@ export default function ClientView() {
         </div>
 
         {/* Main Content */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Payment Progress */}
           <Card>
             <CardHeader>
@@ -209,8 +210,17 @@ export default function ClientView() {
             </CardContent>
           </Card>
 
+          {/* Payment Schedule */}
+          <PaymentSchedule
+            contractAmount={client.contract_amount}
+            firstPayment={client.first_payment}
+            monthlyPayment={client.monthly_payment}
+            installmentPeriod={client.installment_period}
+            createdAt={client.created_at}
+          />
+
           {/* Payment Management */}
-          <Card className="md:col-span-2">
+          <Card className="lg:col-span-2">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Управление платежами</CardTitle>
