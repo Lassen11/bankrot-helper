@@ -50,6 +50,17 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     setIsSubmitting(true);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Ошибка",
+          description: "Необходимо войти в систему",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('clients')
         .insert([
@@ -62,7 +73,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             remaining_amount: remainingAmount,
             total_paid: 0,
             deposit_paid: 0,
-            deposit_target: 50000
+            deposit_target: 50000,
+            user_id: user.id
           }
         ]);
 

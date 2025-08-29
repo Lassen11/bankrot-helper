@@ -28,6 +28,7 @@ export type Database = {
           remaining_amount: number
           total_paid: number | null
           updated_at: string | null
+          user_id: string
         }
         Insert: {
           contract_amount: number
@@ -42,6 +43,7 @@ export type Database = {
           remaining_amount?: number
           total_paid?: number | null
           updated_at?: string | null
+          user_id: string
         }
         Update: {
           contract_amount?: number
@@ -56,6 +58,31 @@ export type Database = {
           remaining_amount?: number
           total_paid?: number | null
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
