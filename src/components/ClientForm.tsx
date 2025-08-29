@@ -18,9 +18,28 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     contractAmount: "",
     installmentPeriod: "",
     firstPayment: "",
-    monthlyPayment: "",
     remainingAmount: ""
   });
+
+  // Автоматический расчет ежемесячного платежа
+  const calculateMonthlyPayment = () => {
+    const contractAmount = parseFloat(formData.contractAmount) || 0;
+    const firstPayment = parseFloat(formData.firstPayment) || 0;
+    const installmentPeriod = parseInt(formData.installmentPeriod) || 1;
+    
+    return (contractAmount - firstPayment) / installmentPeriod;
+  };
+
+  // Автоматический расчет остатка к оплате
+  const calculateRemainingAmount = () => {
+    const contractAmount = parseFloat(formData.contractAmount) || 0;
+    const firstPayment = parseFloat(formData.firstPayment) || 0;
+    
+    return contractAmount - firstPayment;
+  };
+
+  const monthlyPayment = calculateMonthlyPayment();
+  const remainingAmount = calculateRemainingAmount();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -39,8 +58,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             contract_amount: parseFloat(formData.contractAmount),
             installment_period: parseInt(formData.installmentPeriod),
             first_payment: parseFloat(formData.firstPayment),
-            monthly_payment: parseFloat(formData.monthlyPayment),
-            remaining_amount: parseFloat(formData.remainingAmount)
+            monthly_payment: monthlyPayment,
+            remaining_amount: remainingAmount
           }
         ]);
 
@@ -56,7 +75,6 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         contractAmount: "",
         installmentPeriod: "",
         firstPayment: "",
-        monthlyPayment: "",
         remainingAmount: ""
       });
 
@@ -136,31 +154,43 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
 
             <div>
               <Label htmlFor="monthlyPayment">Ежемесячный платеж (₽)</Label>
-              <Input
-                id="monthlyPayment"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.monthlyPayment}
-                onChange={(e) => handleInputChange("monthlyPayment", e.target.value)}
-                placeholder="0.00"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="monthlyPayment"
+                  type="text"
+                  value={monthlyPayment > 0 ? monthlyPayment.toFixed(2) : "0.00"}
+                  readOnly
+                  className="bg-muted cursor-default"
+                  placeholder="Рассчитывается автоматически"
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
+                  авто
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                (Сумма договора - Первый платеж) ÷ Месяцы рассрочки
+              </p>
             </div>
           </div>
 
           <div>
             <Label htmlFor="remainingAmount">Остаток к оплате (₽)</Label>
-            <Input
-              id="remainingAmount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.remainingAmount}
-              onChange={(e) => handleInputChange("remainingAmount", e.target.value)}
-              placeholder="0.00"
-              required
-            />
+            <div className="relative">
+              <Input
+                id="remainingAmount"
+                type="text"
+                value={remainingAmount > 0 ? remainingAmount.toFixed(2) : "0.00"}
+                readOnly
+                className="bg-muted cursor-default"
+                placeholder="Рассчитывается автоматически"
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
+                авто
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Сумма договора - Первый платеж
+            </p>
           </div>
 
           <Button
