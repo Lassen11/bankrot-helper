@@ -45,6 +45,22 @@ export default function ClientView() {
     }
   }, [id]);
 
+  // Функция для расчета даты завершения на основе остатка к оплате
+  const calculateCompletionDate = (contractAmount: number, totalPaid: number, depositPaid: number, monthlyPayment: number) => {
+    const totalPaidAmount = (totalPaid || 0) + (depositPaid || 0);
+    const remainingAmount = Math.max(0, contractAmount - totalPaidAmount);
+    
+    if (remainingAmount <= 0 || monthlyPayment <= 0) {
+      return new Date(); // Уже оплачено
+    }
+    
+    const monthsRemaining = Math.ceil(remainingAmount / monthlyPayment);
+    const completionDate = new Date();
+    completionDate.setMonth(completionDate.getMonth() + monthsRemaining);
+    
+    return completionDate;
+  };
+
   const fetchClient = async () => {
     try {
       const { data, error } = await supabase
@@ -64,15 +80,20 @@ export default function ClientView() {
         deposit_paid: data.deposit_paid || 0,
       });
       
-      // Инициализируем количество оставшихся платежей
-      const totalPayments = data.installment_period + 1; // +1 для первого платежа
-      setRemainingPayments(totalPayments);
+      // Рассчитываем количество оставшихся месяцев на основе остатка к оплате
+      const totalPaidAmount = (data.total_paid || 0) + (data.deposit_paid || 0);
+      const remainingAmount = Math.max(0, data.contract_amount - totalPaidAmount);
+      const monthsRemaining = data.monthly_payment > 0 ? Math.ceil(remainingAmount / data.monthly_payment) : 0;
+      setRemainingPayments(monthsRemaining);
       
-      // Рассчитываем дату завершения (последний платеж)
-      const startDate = new Date(data.created_at);
-      const endDate = new Date(startDate);
-      endDate.setMonth(startDate.getMonth() + data.installment_period);
-      setCompletionDate(endDate);
+      // Рассчитываем дату завершения на основе остатка к оплате
+      const completion = calculateCompletionDate(
+        data.contract_amount,
+        data.total_paid || 0,
+        data.deposit_paid || 0,
+        data.monthly_payment
+      );
+      setCompletionDate(completion);
     } catch (error) {
       toast.error('Произошла ошибка');
     } finally {
@@ -84,12 +105,16 @@ export default function ClientView() {
     if (!client) return;
 
     try {
+      // Рассчитываем новый остаток с учетом депозита
+      const totalPaidAmount = editData.total_paid + editData.deposit_paid;
+      const newRemainingAmount = Math.max(0, client.contract_amount - totalPaidAmount);
+      
       const { error } = await supabase
         .from('clients')
         .update({
           total_paid: editData.total_paid,
           deposit_paid: editData.deposit_paid,
-          remaining_amount: client.contract_amount - editData.total_paid,
+          remaining_amount: newRemainingAmount,
         })
         .eq('id', client.id);
 
@@ -97,6 +122,18 @@ export default function ClientView() {
         toast.error('Ошибка при сохранении');
         return;
       }
+
+      // Пересчитываем дату завершения и оставшиеся месяцы
+      const monthsRemaining = client.monthly_payment > 0 ? Math.ceil(newRemainingAmount / client.monthly_payment) : 0;
+      setRemainingPayments(monthsRemaining);
+      
+      const newCompletionDate = calculateCompletionDate(
+        client.contract_amount,
+        editData.total_paid,
+        editData.deposit_paid,
+        client.monthly_payment
+      );
+      setCompletionDate(newCompletionDate);
 
       toast.success('Данные сохранены');
       setIsEditing(false);
