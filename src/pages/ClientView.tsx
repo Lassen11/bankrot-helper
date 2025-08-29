@@ -286,7 +286,13 @@ export default function ClientView() {
           />
 
           {/* Receipt Manager */}
-          <ReceiptManager clientId={client.id} />
+          <ReceiptManager 
+            clientId={client.id} 
+            onReceiptsChange={() => {
+              // Обновляем график платежей при изменении количества чеков
+              fetchClient();
+            }} 
+          />
 
           {/* Payment Management */}
           <Card className="lg:col-span-2">

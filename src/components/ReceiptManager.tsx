@@ -26,9 +26,10 @@ interface Receipt {
 
 interface ReceiptManagerProps {
   clientId: string;
+  onReceiptsChange?: () => void;
 }
 
-export function ReceiptManager({ clientId }: ReceiptManagerProps) {
+export function ReceiptManager({ clientId, onReceiptsChange }: ReceiptManagerProps) {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -142,6 +143,7 @@ export function ReceiptManager({ clientId }: ReceiptManagerProps) {
       if (successfulUploads.length > 0) {
         toast.success(`Загружено файлов: ${successfulUploads.length}`);
         await fetchReceipts();
+        onReceiptsChange?.();
       }
     } catch (error) {
       toast.error('Произошла ошибка при загрузке файлов');
@@ -212,6 +214,7 @@ export function ReceiptManager({ clientId }: ReceiptManagerProps) {
 
       toast.success('Чек удален');
       await fetchReceipts();
+      onReceiptsChange?.();
     } catch (error) {
       toast.error('Произошла ошибка при удалении');
     } finally {
