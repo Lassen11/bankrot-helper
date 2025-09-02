@@ -2,15 +2,18 @@ import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { ClientForm } from "@/components/ClientForm";
 import { ClientsList } from "@/components/ClientsList";
+import { AdminPanel } from "@/components/AdminPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserPlus, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Index = () => {
   const [refreshClients, setRefreshClients] = useState(false);
   const { user } = useAuth();
+  const { isAdmin, isEmployee, loading: roleLoading } = useUserRole();
   const [metrics, setMetrics] = useState({
     totalClients: 0,
     totalContractAmount: 0,
@@ -19,19 +22,25 @@ const Index = () => {
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && !roleLoading) {
       fetchMetrics();
     }
-  }, [user, refreshClients]);
+  }, [user, refreshClients, roleLoading]);
 
   const fetchMetrics = async () => {
     if (!user) return;
     
     try {
-      const { data: clients, error } = await supabase
+      let query = supabase
         .from('clients')
-        .select('contract_amount, total_paid')
-        .eq('user_id', user.id);
+        .select('contract_amount, total_paid');
+      
+      // Если не админ, показываем только своих клиентов
+      if (!isAdmin) {
+        query = query.eq('user_id', user.id);
+      }
+      
+      const { data: clients, error } = await query;
 
       if (error) {
         console.error('Ошибка загрузки метрик:', error);
@@ -72,6 +81,26 @@ const Index = () => {
   const handleClientAdded = () => {
     setRefreshClients(prev => !prev);
   };
+
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Загрузка...</div>
+      </div>
+    );
+  }
+
+  // Если пользователь админ, показываем админ панель
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <AdminPanel />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
