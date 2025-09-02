@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ClientDetailsDialog } from "./ClientDetailsDialog";
 
 interface Client {
   id: string;
@@ -25,6 +26,8 @@ export const EmployeeClientsDialog = ({ employeeId, employeeName, clientsCount }
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clientDetailsOpen, setClientDetailsOpen] = useState(false);
 
   const fetchEmployeeClients = async () => {
     if (!employeeId || loading) return;
@@ -72,6 +75,11 @@ export const EmployeeClientsDialog = ({ employeeId, employeeName, clientsCount }
     return { label: "Начато", variant: "outline" as const };
   };
 
+  const handleClientClick = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setClientDetailsOpen(true);
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -114,7 +122,11 @@ export const EmployeeClientsDialog = ({ employeeId, employeeName, clientsCount }
                 {clients.map((client) => {
                   const status = getPaymentStatus(client.total_paid || 0, client.contract_amount);
                   return (
-                    <TableRow key={client.id}>
+                    <TableRow 
+                      key={client.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleClientClick(client.id)}
+                    >
                       <TableCell className="font-medium">{client.full_name}</TableCell>
                       <TableCell>{formatAmount(client.contract_amount)}</TableCell>
                       <TableCell>{formatAmount(client.total_paid || 0)}</TableCell>
@@ -130,6 +142,12 @@ export const EmployeeClientsDialog = ({ employeeId, employeeName, clientsCount }
             </Table>
           </div>
         )}
+        
+        <ClientDetailsDialog 
+          clientId={selectedClientId}
+          open={clientDetailsOpen}
+          onOpenChange={setClientDetailsOpen}
+        />
       </DialogContent>
     </Dialog>
   );
