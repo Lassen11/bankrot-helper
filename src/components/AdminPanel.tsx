@@ -95,11 +95,21 @@ export const AdminPanel = () => {
 
       if (error) throw error;
 
-      // Получаем email адреса из auth
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.error('Ошибка получения данных пользователей:', authError);
+      // Получаем email адреса из Edge Function
+      const { data: session } = await supabase.auth.getSession();
+      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+        headers: {
+          'Authorization': `Bearer ${session?.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      let authUsers = [];
+      if (response.ok) {
+        const result = await response.json();
+        authUsers = result.users || [];
+      } else {
+        console.error('Ошибка получения данных пользователей:', response.statusText);
       }
 
       // Получаем клиентов для каждого сотрудника
@@ -117,7 +127,7 @@ export const AdminPanel = () => {
             continue;
           }
 
-          const authUser = authUsers?.users?.find((u: any) => u.id === employee.user_id);
+          const authUser = authUsers?.find((u: any) => u.id === employee.user_id);
           const clientsData = clients || [];
           const totalContractAmount = clientsData.reduce((sum: number, client: any) => sum + (client.contract_amount || 0), 0);
           const activeCases = clientsData.filter((client: any) => {

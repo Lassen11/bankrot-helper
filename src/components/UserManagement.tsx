@@ -39,13 +39,12 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
   }, []);
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
-      // Получаем всех пользователей с их профилями
+      // Получаем профили пользователей
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name');
+        .from('profiles')  
+        .select('user_id, full_name, created_at');
 
       if (profilesError) throw profilesError;
 
@@ -56,15 +55,25 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
 
       if (rolesError) throw rolesError;
 
-      // Получаем email адреса из auth
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.error('Ошибка получения данных пользователей:', authError);
+      // Получаем email адреса из Edge Function
+      const { data: session } = await supabase.auth.getSession();
+      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+        headers: {
+          'Authorization': `Bearer ${session?.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      let authUsers = [];
+      if (response.ok) {
+        const result = await response.json();
+        authUsers = result.users || [];
+      } else {
+        console.error('Ошибка получения данных пользователей:', response.statusText);
       }
 
       const usersWithRoles: UserWithRole[] = profiles?.map(profile => {
-        const authUser = authUsers?.users?.find((u: any) => u.id === profile.user_id);
+        const authUser = authUsers?.find((u: any) => u.id === profile.user_id);
         const roleData = userRoles?.find(r => r.user_id === profile.user_id);
         return {
           user_id: profile.user_id,
@@ -99,30 +108,26 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
     }
 
     try {
-      // Создаем пользователя через Admin API
-      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email: newUserEmail,
-        password: 'temp123456', // Временный пароль
-        email_confirm: true,
-        user_metadata: {
-          full_name: newUserName
-        }
+      // Создаем пользователя через Edge Function
+      const { data: session } = await supabase.auth.getSession();
+      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: newUserEmail,
+          password: 'temp123456',
+          full_name: newUserName,
+          role: newUserRole
+        }),
       });
 
-      if (createError) throw createError;
-
-      // Создаем роль для пользователя
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert([
-          {
-            user_id: newUser.user.id,
-            role: newUserRole,
-            created_by: user?.id
-          }
-        ]);
-
-      if (roleError) throw roleError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка создания пользователя');
+      }
 
       toast({
         title: "Успешно",
@@ -180,10 +185,20 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
     }
 
     try {
-      // Удаляем пользователя через Admin API
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      // Удаляем пользователя через Edge Function
+      const { data: session } = await supabase.auth.getSession();
+      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users?userId=${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session?.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка удаления пользователя');
+      }
 
       toast({
         title: "Успешно",
@@ -192,12 +207,11 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
 
       fetchUsers();
       onUserUpdate();
-
     } catch (error: any) {
       console.error('Ошибка при удалении пользователя:', error);
       toast({
         title: "Ошибка",
-        description: "Не удалось удалить пользователя",
+        description: error.message || "Не удалось удалить пользователя",
         variant: "destructive",
       });
     }
