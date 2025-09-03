@@ -96,17 +96,54 @@ serve(async (req) => {
         // Create new user
         const { email, password, full_name, role } = await req.json()
 
-        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email,
-          password: password || 'temp123456',
-          email_confirm: true,
-          user_metadata: {
-            full_name
-          }
-        })
+        // Check if user already exists
+        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+        const existingUser = existingUsers.users?.find(u => u.email === email)
 
-        if (createError) {
-          throw createError
+        let userId: string
+
+        if (existingUser) {
+          // User exists, check if they have a role
+          const { data: existingRole } = await supabaseAdmin
+            .from('user_roles')
+            .select('*')
+            .eq('user_id', existingUser.id)
+            .single()
+
+          if (existingRole) {
+            return new Response(
+              JSON.stringify({ error: 'Пользователь с этой ролью уже существует в системе' }),
+              { 
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              }
+            )
+          }
+
+          // Update user metadata if needed
+          await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+            user_metadata: {
+              full_name
+            }
+          })
+
+          userId = existingUser.id
+        } else {
+          // Create new user
+          const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password: password || 'temp123456',
+            email_confirm: true,
+            user_metadata: {
+              full_name
+            }
+          })
+
+          if (createError) {
+            throw createError
+          }
+
+          userId = newUser.user.id
         }
 
         // Create role for the user
@@ -114,7 +151,7 @@ serve(async (req) => {
           .from('user_roles')
           .insert([
             {
-              user_id: newUser.user.id,
+              user_id: userId,
               role: role || 'employee',
               created_by: user.id
             }
@@ -125,7 +162,7 @@ serve(async (req) => {
         }
 
         return new Response(
-          JSON.stringify({ user: newUser.user }),
+          JSON.stringify({ user: { id: userId, email } }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
