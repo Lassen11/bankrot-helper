@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, UserPlus, TrendingUp, Building } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { UserManagement } from "./UserManagement";
 import { EmployeeClientsDialog } from "./EmployeeClientsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,6 +29,7 @@ interface EmployeeStats {
 
 export const AdminPanel = () => {
   const { user } = useAuth();
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalUsers: 0,
     totalClients: 0,
@@ -38,11 +40,16 @@ export const AdminPanel = () => {
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
 
   useEffect(() => {
-    if (user) {
-      fetchAdminMetrics();
-      fetchEmployeeStats();
-    }
-  }, [user]);
+    if (!user) return;
+    
+    if (roleLoading) return;
+    
+    if (!isAdmin) return;
+    
+    // Только если пользователь авторизован и является админом
+    fetchAdminMetrics();
+    fetchEmployeeStats();
+  }, [user, isAdmin, roleLoading]);
 
   const fetchAdminMetrics = async () => {
     if (!user) return;
@@ -95,21 +102,33 @@ export const AdminPanel = () => {
 
       if (error) throw error;
 
-      // Получаем email адреса из Edge Function
+      // Получаем email адреса из Edge Function только если есть авторизация
       const { data: session } = await supabase.auth.getSession();
-      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
-        headers: {
-          'Authorization': `Bearer ${session?.session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      
+      if (!session?.session?.access_token) {
+        console.error('Нет токена авторизации');
+        return;
+      }
 
       let authUsers = [];
-      if (response.ok) {
-        const result = await response.json();
-        authUsers = result.users || [];
-      } else {
-        console.error('Ошибка получения данных пользователей:', response.statusText);
+      try {
+        const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+          headers: {
+            'Authorization': `Bearer ${session.session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          authUsers = result.users || [];
+        } else {
+          console.error('Ошибка получения данных пользователей:', response.statusText);
+          return;
+        }
+      } catch (fetchError) {
+        console.error('Ошибка сети при получении пользователей:', fetchError);
+        return;
       }
 
       // Получаем клиентов для каждого сотрудника
