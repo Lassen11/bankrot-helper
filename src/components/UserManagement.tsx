@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserPlus, Settings, Trash2 } from "lucide-react";
+import { Users, UserPlus, Settings, Trash2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface UserWithRole {
   user_id: string;
@@ -27,16 +29,23 @@ interface UserManagementProps {
 export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { userRole, isAdmin, loading: roleLoading } = useUserRole();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserRole, setNewUserRole] = useState<'admin' | 'employee'>('employee');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (user && isAdmin) {
+      fetchUsers();
+    } else if (user && !roleLoading && !isAdmin) {
+      setError('У вас нет прав администратора для просмотра этого раздела');
+      setLoading(false);
+    }
+  }, [user, isAdmin, roleLoading]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -46,20 +55,31 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
         .from('profiles')  
         .select('user_id, full_name, created_at');
 
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error('Ошибка получения профилей:', profilesError);
+        throw new Error(`Не удалось получить профили пользователей: ${profilesError.message}`);
+      }
 
       // Получаем роли пользователей
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role, created_at');
 
-      if (rolesError) throw rolesError;
+      if (rolesError) {
+        console.error('Ошибка получения ролей:', rolesError);
+        throw new Error(`Не удалось получить роли пользователей: ${rolesError.message}`);
+      }
 
       // Получаем email адреса из Edge Function
       const { data: session } = await supabase.auth.getSession();
+      
+      if (!session?.session?.access_token) {
+        throw new Error('Нет токена авторизации. Перелогиньтесь в системе.');
+      }
+
       const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
         headers: {
-          'Authorization': `Bearer ${session?.session?.access_token}`,
+          'Authorization': `Bearer ${session.session.access_token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -69,7 +89,9 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
         const result = await response.json();
         authUsers = result.users || [];
       } else {
-        console.error('Ошибка получения данных пользователей:', response.statusText);
+        const errorText = await response.text();
+        console.error('Ошибка получения данных пользователей:', response.status, errorText);
+        throw new Error(`Ошибка получения пользователей: ${response.status} - ${errorText}`);
       }
 
       const usersWithRoles: UserWithRole[] = profiles?.map(profile => {
@@ -85,11 +107,13 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
       }).filter(user => userRoles?.some(r => r.user_id === user.user_id)) || [];
 
       setUsers(usersWithRoles);
-    } catch (error) {
+      setError(null);
+    } catch (error: any) {
       console.error('Ошибка при загрузке пользователей:', error);
+      setError(error.message || 'Не удалось загрузить список пользователей');
       toast({
         title: "Ошибка",
-        description: "Не удалось загрузить список пользователей",
+        description: error.message || "Не удалось загрузить список пользователей",
         variant: "destructive",
       });
     } finally {
@@ -217,8 +241,59 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
     }
   };
 
-  if (loading) {
-    return <div>Загрузка...</div>;
+  if (roleLoading || loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p>Загрузка...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          {isAdmin && (
+            <Button 
+              onClick={() => {
+                setError(null);
+                fetchUsers();
+              }} 
+              className="mt-4"
+              variant="outline"
+            >
+              Попробовать снова
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              У вас нет прав администратора для доступа к этому разделу.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
