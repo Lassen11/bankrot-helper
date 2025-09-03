@@ -39,12 +39,24 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user && isAdmin) {
-      fetchUsers();
-    } else if (user && !roleLoading && !isAdmin) {
+    if (!user) {
+      setError('Пожалуйста, войдите в систему');
+      setLoading(false);
+      return;
+    }
+
+    if (roleLoading) {
+      return; // Ждем загрузки роли
+    }
+
+    if (!isAdmin) {
       setError('У вас нет прав администратора для просмотра этого раздела');
       setLoading(false);
+      return;
     }
+
+    // Только если пользователь авторизован и является админом
+    fetchUsers();
   }, [user, isAdmin, roleLoading]);
 
   const fetchUsers = async () => {
@@ -261,6 +273,21 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
       });
     }
   };
+
+  if (!user) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Для доступа к управлению пользователями необходимо войти в систему.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (roleLoading || loading) {
     return (
