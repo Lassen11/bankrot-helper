@@ -49,7 +49,20 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
 
   const fetchUsers = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
+      // Проверяем авторизацию
+      const { data: session, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        throw new Error(`Ошибка сессии: ${sessionError.message}`);
+      }
+      
+      if (!session?.session?.access_token) {
+        throw new Error('Нет активной сессии. Пожалуйста, войдите в систему заново.');
+      }
+
       // Получаем профили пользователей
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')  
@@ -71,27 +84,35 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
       }
 
       // Получаем email адреса из Edge Function
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (!session?.session?.access_token) {
-        throw new Error('Нет токена авторизации. Перелогиньтесь в системе.');
-      }
-
-      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
-        headers: {
-          'Authorization': `Bearer ${session.session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
       let authUsers = [];
-      if (response.ok) {
+      try {
+        const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+          headers: {
+            'Authorization': `Bearer ${session.session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Ошибка Edge Function:', response.status, errorText);
+          
+          if (response.status === 401) {
+            throw new Error('Нет прав доступа. Убедитесь, что вы вошли как администратор.');
+          } else if (response.status === 403) {
+            throw new Error('Недостаточно прав. Только администраторы могут просматривать пользователей.');
+          } else {
+            throw new Error(`Ошибка сервера: ${response.status} - ${errorText}`);
+          }
+        }
+
         const result = await response.json();
         authUsers = result.users || [];
-      } else {
-        const errorText = await response.text();
-        console.error('Ошибка получения данных пользователей:', response.status, errorText);
-        throw new Error(`Ошибка получения пользователей: ${response.status} - ${errorText}`);
+      } catch (fetchError) {
+        if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
+          throw new Error('Ошибка сети. Проверьте интернет-соединение и попробуйте снова.');
+        }
+        throw fetchError;
       }
 
       const usersWithRoles: UserWithRole[] = profiles?.map(profile => {
