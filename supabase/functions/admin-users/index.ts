@@ -108,10 +108,9 @@ serve(async (req) => {
             .from('user_roles')
             .select('*')
             .eq('user_id', existingUser.id)
-            .eq('role', role || 'employee')
             .single()
 
-          if (existingRole) {
+          if (existingRole && existingRole.role === (role || 'employee')) {
             return new Response(
               JSON.stringify({ error: `Пользователь уже имеет роль ${role || 'employee'}` }),
               { 
@@ -129,6 +128,36 @@ serve(async (req) => {
           })
 
           userId = existingUser.id
+
+          // Update existing role or create new one
+          if (existingRole) {
+            const { error: roleUpdateError } = await supabaseAdmin
+              .from('user_roles')
+              .update({
+                role: role || 'employee',
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', userId)
+
+            if (roleUpdateError) {
+              throw roleUpdateError
+            }
+          } else {
+            // Create new role if none exists
+            const { error: roleInsertError } = await supabaseAdmin
+              .from('user_roles')
+              .insert([
+                {
+                  user_id: userId,
+                  role: role || 'employee',
+                  created_by: user.id
+                }
+              ])
+
+            if (roleInsertError) {
+              throw roleInsertError
+            }
+          }
         } else {
           // Create new user
           const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -145,21 +174,6 @@ serve(async (req) => {
           }
 
           userId = newUser.user.id
-        }
-
-        // Create role for the user
-        const { error: roleInsertError } = await supabaseAdmin
-          .from('user_roles')
-          .insert([
-            {
-              user_id: userId,
-              role: role || 'employee',
-              created_by: user.id
-            }
-          ])
-
-        if (roleInsertError) {
-          throw roleInsertError
         }
 
         return new Response(
