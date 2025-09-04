@@ -175,7 +175,22 @@ serve(async (req) => {
 
           userId = newUser.user.id
           
-          // Create role for the new user
+          // Создаем профиль пользователя вручную
+          const { error: profileInsertError } = await supabaseAdmin
+            .from('profiles')
+            .insert([
+              {
+                user_id: userId,
+                full_name: full_name
+              }
+            ])
+          
+          if (profileInsertError) {
+            console.error('Ошибка создания профиля:', profileInsertError);
+            // Не прерываем выполнение, так как профиль может быть создан триггером
+          }
+          
+          // Создаем роль для нового пользователя
           const { error: roleInsertError } = await supabaseAdmin
             .from('user_roles')
             .insert([

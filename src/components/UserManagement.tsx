@@ -130,14 +130,18 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
       const usersWithRoles: UserWithRole[] = profiles?.map(profile => {
         const authUser = authUsers?.find((u: any) => u.id === profile.user_id);
         const roleData = userRoles?.find(r => r.user_id === profile.user_id);
+        
+        // Показываем только пользователей с ролями
+        if (!roleData) return null;
+        
         return {
           user_id: profile.user_id,
           full_name: profile.full_name || 'Не указано',
           email: authUser?.email || 'Не указан',
-          role: roleData?.role || 'employee',
-          created_at: roleData?.created_at || ''
+          role: roleData.role || 'employee',
+          created_at: roleData.created_at || ''
         };
-      }).filter(user => userRoles?.some(r => r.user_id === user.user_id)) || [];
+      }).filter(Boolean) || [];
 
       setUsers(usersWithRoles);
       setError(null);
@@ -188,7 +192,7 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
 
       toast({
         title: "Успешно",
-        description: `Пользователь ${newUserName} добавлен с ролью ${newUserRole === 'admin' ? 'Администратор' : 'Сотрудник'}`,
+        description: `Пользователь ${newUserName} добавлен с ролью ${newUserRole === 'admin' ? 'Администратор' : 'Сотрудник'}. Для входа используйте email: ${newUserEmail} и пароль: temp123456`,
       });
 
       // Сброс формы и обновление списка
