@@ -103,22 +103,12 @@ serve(async (req) => {
         let userId: string
 
         if (existingUser) {
-          // User exists, check if they already have this specific role
+          // User exists, check current role
           const { data: existingRole } = await supabaseAdmin
             .from('user_roles')
             .select('*')
             .eq('user_id', existingUser.id)
             .single()
-
-          if (existingRole && existingRole.role === (role || 'employee')) {
-            return new Response(
-              JSON.stringify({ error: `Пользователь уже имеет роль ${role || 'employee'}` }),
-              { 
-                status: 400,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-              }
-            )
-          }
 
           // Update user metadata if needed
           await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
@@ -129,8 +119,18 @@ serve(async (req) => {
 
           userId = existingUser.id
 
-          // Update existing role or create new one
           if (existingRole) {
+            // If user already has the requested role, return success
+            if (existingRole.role === (role || 'employee')) {
+              return new Response(
+                JSON.stringify({ user: { id: userId, email: existingUser.email }, message: 'Пользователь уже существует с этой ролью' }),
+                { 
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                }
+              )
+            }
+            
+            // Update existing role to new role
             const { error: roleUpdateError } = await supabaseAdmin
               .from('user_roles')
               .update({
@@ -174,6 +174,21 @@ serve(async (req) => {
           }
 
           userId = newUser.user.id
+          
+          // Create role for the new user
+          const { error: roleInsertError } = await supabaseAdmin
+            .from('user_roles')
+            .insert([
+              {
+                user_id: userId,
+                role: role || 'employee',
+                created_by: user.id
+              }
+            ])
+
+          if (roleInsertError) {
+            throw roleInsertError
+          }
         }
 
         return new Response(
