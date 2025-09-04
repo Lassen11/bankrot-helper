@@ -170,8 +170,8 @@ serve(async (req) => {
 
       case 'DELETE':
         // Delete user
-        const userId = url.searchParams.get('userId')
-        if (!userId) {
+        const userIdToDelete = url.searchParams.get('userId')
+        if (!userIdToDelete) {
           return new Response(
             JSON.stringify({ error: 'User ID is required' }),
             { 
@@ -181,7 +181,7 @@ serve(async (req) => {
           )
         }
 
-        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userIdToDelete)
         
         if (deleteError) {
           throw deleteError
