@@ -103,16 +103,17 @@ serve(async (req) => {
         let userId: string
 
         if (existingUser) {
-          // User exists, check if they have a role
+          // User exists, check if they already have this specific role
           const { data: existingRole } = await supabaseAdmin
             .from('user_roles')
             .select('*')
             .eq('user_id', existingUser.id)
+            .eq('role', role || 'employee')
             .single()
 
           if (existingRole) {
             return new Response(
-              JSON.stringify({ error: 'Пользователь с этой ролью уже существует в системе' }),
+              JSON.stringify({ error: `Пользователь уже имеет роль ${role || 'employee'}` }),
               { 
                 status: 400,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
