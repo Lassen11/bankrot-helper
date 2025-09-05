@@ -95,13 +95,6 @@ export const AdminPanel = () => {
     if (!user) return;
 
     try {
-      // Получаем всех пользователей с их профилями
-      const { data: employeesData, error } = await supabase
-        .from('profiles')
-        .select('user_id, full_name');
-
-      if (error) throw error;
-
       // Получаем email адреса из Edge Function только если есть авторизация
       const { data: session } = await supabase.auth.getSession();
       
@@ -131,22 +124,37 @@ export const AdminPanel = () => {
         return;
       }
 
+      // Получаем всех пользователей с ролями
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      // Получаем профили пользователей
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+
+      if (profilesError) throw profilesError;
+
       // Получаем клиентов для каждого сотрудника
       const stats: EmployeeStats[] = [];
       
-      if (employeesData) {
-        for (const employee of employeesData) {
+      if (userRoles) {
+        for (const userRole of userRoles) {
           const { data: clients, error: clientsError } = await supabase
             .from('clients')
             .select('contract_amount, total_paid')
-            .eq('user_id', employee.user_id);
+            .eq('user_id', userRole.user_id);
 
           if (clientsError) {
-            console.error(`Ошибка загрузки клиентов для пользователя ${employee.user_id}:`, clientsError);
+            console.error(`Ошибка загрузки клиентов для пользователя ${userRole.user_id}:`, clientsError);
             continue;
           }
 
-          const authUser = authUsers?.find((u: any) => u.id === employee.user_id);
+          const authUser = authUsers?.find((u: any) => u.id === userRole.user_id);
+          const profile = profiles?.find(p => p.user_id === userRole.user_id);
           const clientsData = clients || [];
           const totalContractAmount = clientsData.reduce((sum: number, client: any) => sum + (client.contract_amount || 0), 0);
           const activeCases = clientsData.filter((client: any) => {
@@ -156,8 +164,8 @@ export const AdminPanel = () => {
           }).length;
 
           stats.push({
-            user_id: employee.user_id,
-            full_name: employee.full_name || 'Не указано',
+            user_id: userRole.user_id,
+            full_name: profile?.full_name || 'Не указано',
             email: authUser?.email || 'Не указан',
             clients_count: clientsData.length,
             total_contract_amount: totalContractAmount,
