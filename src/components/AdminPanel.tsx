@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, TrendingUp, Building } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Building, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { UserManagement } from "./UserManagement";
 import { EmployeeClientsDialog } from "./EmployeeClientsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface AdminMetrics {
   totalUsers: number;
@@ -180,6 +182,57 @@ export const AdminPanel = () => {
     }
   };
 
+  const handleDeleteEmployee = async (userId: string, fullName: string) => {
+    if (!user) return;
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      
+      if (!session?.session?.access_token) {
+        toast({
+          title: "Ошибка",
+          description: "Нет авторизации для выполнения операции",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Успешно",
+          description: `Сотрудник ${fullName} был удален`,
+        });
+        
+        // Обновляем данные
+        fetchAdminMetrics();
+        fetchEmployeeStats();
+      } else {
+        const errorText = await response.text();
+        toast({
+          title: "Ошибка",
+          description: `Не удалось удалить сотрудника: ${errorText}`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка при удалении сотрудника:', error);
+      toast({
+        title: "Ошибка",
+        description: "Произошла ошибка при удалении сотрудника",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -313,11 +366,43 @@ export const AdminPanel = () => {
                           <p className="text-xs text-muted-foreground">Активных дел</p>
                         </div>
                       </div>
-                      <EmployeeClientsDialog 
-                        employeeId={employee.user_id}
-                        employeeName={employee.full_name}
-                        clientsCount={employee.clients_count}
-                      />
+                      <div className="flex items-center gap-2">
+                        <EmployeeClientsDialog 
+                          employeeId={employee.user_id}
+                          employeeName={employee.full_name}
+                          clientsCount={employee.clients_count}
+                        />
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Удалить сотрудника?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Вы действительно хотите удалить сотрудника "{employee.full_name}"? 
+                                Это действие нельзя отменить. Все данные связанные с этим пользователем будут удалены.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Отмена</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteEmployee(employee.user_id, employee.full_name)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Удалить
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </div>
                 ))}
