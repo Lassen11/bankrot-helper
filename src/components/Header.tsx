@@ -1,6 +1,7 @@
-import { Scale, LogOut } from "lucide-react";
+import { Scale, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 export const Header = () => {
   const {
     user,
@@ -24,6 +25,12 @@ export const Header = () => {
             <span className="text-sm text-muted-foreground">
               {user?.email}
             </span>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/profile">
+                <User className="h-4 w-4 mr-2" />
+                Профиль
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Выйти
