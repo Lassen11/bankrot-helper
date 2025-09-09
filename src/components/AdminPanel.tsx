@@ -371,6 +371,14 @@ export const AdminPanel = () => {
                           employeeId={employee.user_id}
                           employeeName={employee.full_name}
                           clientsCount={employee.clients_count}
+                          onClientDeleted={() => {
+                            fetchAdminMetrics();
+                            fetchEmployeeStats();
+                          }}
+                          onClientTransferred={() => {
+                            fetchAdminMetrics();
+                            fetchEmployeeStats();
+                          }}
                         />
                         
                         <AlertDialog>
