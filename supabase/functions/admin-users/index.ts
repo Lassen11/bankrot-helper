@@ -215,8 +215,12 @@ serve(async (req) => {
 
       case 'DELETE':
         // Delete user
+        console.log('DELETE request received');
         const { userId: userIdToDelete } = await req.json()
+        console.log('User ID to delete:', userIdToDelete);
+        
         if (!userIdToDelete) {
+          console.error('User ID is required but not provided');
           return new Response(
             JSON.stringify({ error: 'User ID is required' }),
             { 
@@ -226,12 +230,15 @@ serve(async (req) => {
           )
         }
 
+        console.log('Attempting to delete user:', userIdToDelete);
         const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userIdToDelete)
         
         if (deleteError) {
+          console.error('Delete error:', deleteError);
           throw deleteError
         }
 
+        console.log('User deleted successfully');
         return new Response(
           JSON.stringify({ success: true }),
           { 

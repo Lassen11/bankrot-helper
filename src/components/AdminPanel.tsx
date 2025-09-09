@@ -185,10 +185,13 @@ export const AdminPanel = () => {
   const handleDeleteEmployee = async (userId: string, fullName: string) => {
     if (!user) return;
 
+    console.log('Attempting to delete employee:', { userId, fullName });
+
     try {
       const { data: session } = await supabase.auth.getSession();
       
       if (!session?.session?.access_token) {
+        console.error('No session token available');
         toast({
           title: "Ошибка",
           description: "Нет авторизации для выполнения операции",
@@ -197,6 +200,8 @@ export const AdminPanel = () => {
         return;
       }
 
+      console.log('Making DELETE request to admin-users function...');
+      
       const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
         method: 'DELETE',
         headers: {
@@ -206,7 +211,10 @@ export const AdminPanel = () => {
         body: JSON.stringify({ userId }),
       });
 
+      console.log('DELETE response status:', response.status);
+      
       if (response.ok) {
+        console.log('Employee deleted successfully');
         toast({
           title: "Успешно",
           description: `Сотрудник ${fullName} был удален`,
@@ -217,6 +225,7 @@ export const AdminPanel = () => {
         fetchEmployeeStats();
       } else {
         const errorText = await response.text();
+        console.error('DELETE request failed:', errorText);
         toast({
           title: "Ошибка",
           description: `Не удалось удалить сотрудника: ${errorText}`,
