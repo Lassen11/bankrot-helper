@@ -215,7 +215,7 @@ serve(async (req) => {
 
       case 'DELETE':
         // Delete user
-        const userIdToDelete = url.searchParams.get('userId')
+        const { userId: userIdToDelete } = await req.json()
         if (!userIdToDelete) {
           return new Response(
             JSON.stringify({ error: 'User ID is required' }),
