@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { UserManagement } from "./UserManagement";
 import { EmployeeClientsDialog } from "./EmployeeClientsDialog";
+import { ClientForm } from "./ClientForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -261,9 +262,10 @@ export const AdminPanel = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="employees">Сотрудники</TabsTrigger>
+          <TabsTrigger value="clients">Добавить клиента</TabsTrigger>
           <TabsTrigger value="management">Управление</TabsTrigger>
         </TabsList>
 
@@ -426,6 +428,13 @@ export const AdminPanel = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="clients" className="space-y-6">
+          <ClientForm onClientAdded={() => {
+            fetchAdminMetrics();
+            fetchEmployeeStats();
+          }} />
         </TabsContent>
 
         <TabsContent value="management" className="space-y-6">

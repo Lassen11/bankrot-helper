@@ -10,7 +10,7 @@ export const Header = () => {
   return <header className="bg-card border-b border-border shadow-sm">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
             <div className="p-2 bg-primary rounded-lg">
               <Scale className="h-6 w-6 text-primary-foreground" />
             </div>
@@ -20,7 +20,7 @@ export const Header = () => {
                 Управление клиентами
               </p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
               {user?.email}
