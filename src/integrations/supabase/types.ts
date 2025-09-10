@@ -17,6 +17,7 @@ export type Database = {
       clients: {
         Row: {
           contract_amount: number
+          contract_date: string
           created_at: string | null
           deposit_paid: number | null
           deposit_target: number | null
@@ -33,6 +34,7 @@ export type Database = {
         }
         Insert: {
           contract_amount: number
+          contract_date?: string
           created_at?: string | null
           deposit_paid?: number | null
           deposit_target?: number | null
@@ -49,6 +51,7 @@ export type Database = {
         }
         Update: {
           contract_amount?: number
+          contract_date?: string
           created_at?: string | null
           deposit_paid?: number | null
           deposit_target?: number | null

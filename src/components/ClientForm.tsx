@@ -19,7 +19,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     installmentPeriod: "",
     firstPayment: "",
     remainingAmount: "",
-    paymentDay: "1"
+    paymentDay: "1",
+    contractDate: new Date().toISOString().split('T')[0] // Today's date as default
   });
 
   // Автоматический расчет ежемесячного платежа
@@ -76,6 +77,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             deposit_paid: 0,
             deposit_target: 50000,
             payment_day: parseInt(formData.paymentDay),
+            contract_date: formData.contractDate,
             user_id: user.id
           }
         ]);
@@ -93,7 +95,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         installmentPeriod: "",
         firstPayment: "",
         remainingAmount: "",
-        paymentDay: "1"
+        paymentDay: "1",
+        contractDate: new Date().toISOString().split('T')[0]
       });
 
       onClientAdded();
@@ -122,6 +125,17 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
               value={formData.fullName}
               onChange={(e) => handleInputChange("fullName", e.target.value)}
               placeholder="Введите полное имя"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="contractDate">Дата заключения договора</Label>
+            <Input
+              id="contractDate"
+              type="date"
+              value={formData.contractDate}
+              onChange={(e) => handleInputChange("contractDate", e.target.value)}
               required
             />
           </div>
