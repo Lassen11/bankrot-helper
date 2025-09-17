@@ -1,4 +1,1 @@
 project_id = "htvbbyoghtoionbvzekw"
-
-[functions.migrate-to-mysql]
-verify_jwt = false

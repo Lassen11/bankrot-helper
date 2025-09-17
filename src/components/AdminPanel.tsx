@@ -9,7 +9,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { UserManagement } from "./UserManagement";
 import { EmployeeClientsDialog } from "./EmployeeClientsDialog";
 import { ClientForm } from "./ClientForm";
-import { MigrationPanel } from "./MigrationPanel";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -263,11 +263,10 @@ export const AdminPanel = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="employees">Сотрудники</TabsTrigger>
           <TabsTrigger value="clients">Добавить клиента</TabsTrigger>
-          <TabsTrigger value="migration">Миграция</TabsTrigger>
           <TabsTrigger value="management">Управление</TabsTrigger>
         </TabsList>
 
@@ -439,9 +438,6 @@ export const AdminPanel = () => {
           }} />
         </TabsContent>
 
-        <TabsContent value="migration" className="space-y-6">
-          <MigrationPanel />
-        </TabsContent>
 
         <TabsContent value="management" className="space-y-6">
           <UserManagement onUserUpdate={() => {
