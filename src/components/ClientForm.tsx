@@ -2,17 +2,27 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
+import React from "react";
 
 interface ClientFormProps {
   onClientAdded: () => void;
 }
 
+interface Employee {
+  id: string;
+  full_name: string;
+}
+
 export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
   const { toast } = useToast();
+  const { isAdmin } = useUserRole();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [formData, setFormData] = useState({
     fullName: "",
     contractAmount: "",
@@ -20,8 +30,30 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     firstPayment: "",
     remainingAmount: "",
     paymentDay: "1",
-    contractDate: new Date().toISOString().split('T')[0] // Today's date as default
+    contractDate: new Date().toISOString().split('T')[0], // Today's date as default
+    employeeId: ""
   });
+
+  // Загружаем список сотрудников для админов
+  React.useEffect(() => {
+    if (isAdmin) {
+      const fetchEmployees = async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .order('full_name');
+        
+        if (!error && data) {
+          setEmployees(data.map(profile => ({ 
+            id: profile.user_id, 
+            full_name: profile.full_name || 'Без имени' 
+          })));
+        }
+      };
+      
+      fetchEmployees();
+    }
+  }, [isAdmin]);
 
   // Автоматический расчет ежемесячного платежа
   const calculateMonthlyPayment = () => {
@@ -63,6 +95,12 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         return;
       }
 
+      // Определяем сотрудника для клиента
+      let employeeId = user.id; // По умолчанию текущий пользователь
+      if (isAdmin && formData.employeeId) {
+        employeeId = formData.employeeId;
+      }
+
       const { error } = await supabase
         .from('clients')
         .insert([
@@ -78,7 +116,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             deposit_target: 50000,
             payment_day: parseInt(formData.paymentDay),
             contract_date: formData.contractDate,
-            user_id: user.id
+            user_id: user.id,
+            employee_id: employeeId
           }
         ]);
 
@@ -96,7 +135,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         firstPayment: "",
         remainingAmount: "",
         paymentDay: "1",
-        contractDate: new Date().toISOString().split('T')[0]
+        contractDate: new Date().toISOString().split('T')[0],
+        employeeId: ""
       });
 
       onClientAdded();
@@ -152,10 +192,34 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
                 onChange={(e) => handleInputChange("contractAmount", e.target.value)}
                 placeholder="0.00"
                 required
-              />
-            </div>
+            />
+          </div>
 
+          {isAdmin && employees.length > 0 && (
             <div>
+              <Label htmlFor="employeeId">Назначить сотрудника</Label>
+              <Select 
+                value={formData.employeeId} 
+                onValueChange={(value) => handleInputChange("employeeId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите сотрудника" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Если не выбран, клиент будет привязан к вам
+              </p>
+            </div>
+          )}
+
+          <div>
               <Label htmlFor="installmentPeriod">Срок рассрочки (мес.)</Label>
               <Input
                 id="installmentPeriod"

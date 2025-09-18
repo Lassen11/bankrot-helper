@@ -20,6 +20,7 @@ interface Client {
   deposit_paid: number;
   deposit_target: number;
   payment_day: number;
+  employee_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +33,7 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [employeesMap, setEmployeesMap] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   const fetchClients = async () => {
@@ -43,6 +45,24 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
 
       if (error) throw error;
       setClients(data || []);
+
+      // Получаем профили сотрудников для отображения имен
+      if (data && data.length > 0) {
+        const employeeIds = [...new Set(data.map(c => c.employee_id).filter(Boolean))];
+        if (employeeIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, full_name')
+            .in('user_id', employeeIds);
+
+          const employeesMapping = (profiles || []).reduce((acc, profile) => {
+            acc[profile.user_id] = profile.full_name || 'Без имени';
+            return acc;
+          }, {} as Record<string, string>);
+
+          setEmployeesMap(employeesMapping);
+        }
+      }
     } catch (error: any) {
       toast({
         title: "Ошибка",
@@ -152,9 +172,16 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
               <Card key={client.id} className={`hover:shadow-md transition-shadow ${isOverdue ? 'border-red-500 bg-red-50/50' : ''}`}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <CardTitle className={`text-lg ${isOverdue ? 'text-red-600' : 'text-primary'}`}>
-                      {client.full_name}
-                    </CardTitle>
+                    <div>
+                      <CardTitle className={`text-lg ${isOverdue ? 'text-red-600' : 'text-primary'}`}>
+                        {client.full_name}
+                      </CardTitle>
+                      {employeesMap[client.employee_id] && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Сотрудник: {employeesMap[client.employee_id]}
+                        </p>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={status.variant}>
                         <div className={`w-2 h-2 rounded-full ${status.color} mr-2`}></div>

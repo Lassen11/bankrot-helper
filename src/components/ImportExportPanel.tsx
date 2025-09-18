@@ -22,17 +22,25 @@ interface Client {
   deposit_target: number;
   payment_day: number;
   user_id: string;
+  employee_id: string;
   created_at: string;
   updated_at: string;
+}
+
+interface Employee {
+  id: string;
+  full_name: string;
 }
 
 export const ImportExportPanel = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   const handleExport = async () => {
     setIsExporting(true);
     try {
+      // Получаем клиентов
       const { data: clients, error } = await supabase
         .from('clients')
         .select('*')
@@ -49,10 +57,24 @@ export const ImportExportPanel = () => {
         return;
       }
 
+      // Получаем профили сотрудников
+      const employeeIds = [...new Set(clients.map(c => c.employee_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', employeeIds);
+
+      const profilesMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.user_id] = profile.full_name || 'Без имени';
+        return acc;
+      }, {} as Record<string, string>);
+
       // Подготавливаем данные для Excel
       const exportData = clients.map(client => ({
         'ID': client.id,
         'ФИО': client.full_name,
+        'Сотрудник': profilesMap[client.employee_id] || 'Не указан',
+        'ID Сотрудника': client.employee_id,
         'Дата договора': new Date(client.contract_date).toLocaleDateString('ru-RU'),
         'Сумма договора': client.contract_amount,
         'Период рассрочки (месяцы)': client.installment_period,
@@ -75,6 +97,8 @@ export const ImportExportPanel = () => {
       const colWidths = [
         { wch: 20 }, // ID
         { wch: 25 }, // ФИО
+        { wch: 20 }, // Сотрудник
+        { wch: 20 }, // ID Сотрудника
         { wch: 15 }, // Дата договора
         { wch: 15 }, // Сумма договора
         { wch: 15 }, // Период рассрочки
@@ -111,6 +135,25 @@ export const ImportExportPanel = () => {
       setIsExporting(false);
     }
   };
+
+  // Загружаем список сотрудников при монтировании компонента
+  React.useEffect(() => {
+    const fetchEmployees = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .order('full_name');
+      
+      if (!error && data) {
+        setEmployees(data.map(profile => ({ 
+          id: profile.user_id, 
+          full_name: profile.full_name || 'Без имени' 
+        })));
+      }
+    };
+    
+    fetchEmployees();
+  }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -151,6 +194,26 @@ export const ImportExportPanel = () => {
 
           for (const row of jsonData) {
             try {
+              // Определяем сотрудника для клиента
+              let employeeId = user.id; // По умолчанию текущий пользователь
+              
+              const employeeIdFromFile = (row as any)['ID Сотрудника'];
+              const employeeNameFromFile = (row as any)['Сотрудник'];
+              
+              if (employeeIdFromFile) {
+                // Если указан ID сотрудника, проверяем, что он существует
+                const employeeExists = employees.find(emp => emp.id === employeeIdFromFile);
+                if (employeeExists) {
+                  employeeId = employeeIdFromFile;
+                }
+              } else if (employeeNameFromFile && employeeNameFromFile !== 'Не указан') {
+                // Если указано имя сотрудника, ищем по имени
+                const employee = employees.find(emp => emp.full_name === employeeNameFromFile);
+                if (employee) {
+                  employeeId = employee.id;
+                }
+              }
+
               const clientData = {
                 full_name: (row as any)['ФИО'] || '',
                 contract_date: parseDate((row as any)['Дата договора']),
@@ -163,7 +226,8 @@ export const ImportExportPanel = () => {
                 deposit_paid: parseFloat((row as any)['Депозит выплачен']) || 0,
                 deposit_target: parseFloat((row as any)['Цель депозита']) || 50000,
                 payment_day: parseInt((row as any)['День платежа']) || 1,
-                user_id: user.id
+                user_id: user.id,
+                employee_id: employeeId
               };
 
               if (!clientData.full_name || !clientData.contract_amount) {
@@ -321,6 +385,8 @@ export const ImportExportPanel = () => {
             </p>
             <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
               <li><strong>ФИО</strong> - полное имя клиента (обязательно)</li>
+              <li><strong>Сотрудник</strong> - имя сотрудника (необязательно)</li>
+              <li><strong>ID Сотрудника</strong> - ID сотрудника в системе (необязательно)</li>
               <li><strong>Дата договора</strong> - дата в формате ДД.ММ.ГГГГ</li>
               <li><strong>Сумма договора</strong> - сумма договора в рублях (обязательно)</li>
               <li><strong>Период рассрочки (месяцы)</strong> - количество месяцев</li>
@@ -333,7 +399,8 @@ export const ImportExportPanel = () => {
           <div className="bg-muted p-4 rounded-lg">
             <p className="text-sm">
               <strong>Примечание:</strong> Поля "ФИО" и "Сумма договора" являются обязательными. 
-              Строки без этих данных будут пропущены при импорте.
+              Если сотрудник не указан, клиент будет привязан к текущему пользователю.
+              Строки без обязательных данных будут пропущены при импорте.
             </p>
           </div>
         </CardContent>

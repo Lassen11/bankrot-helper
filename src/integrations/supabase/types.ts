@@ -21,6 +21,7 @@ export type Database = {
           created_at: string | null
           deposit_paid: number | null
           deposit_target: number | null
+          employee_id: string | null
           first_payment: number
           full_name: string
           id: string
@@ -38,6 +39,7 @@ export type Database = {
           created_at?: string | null
           deposit_paid?: number | null
           deposit_target?: number | null
+          employee_id?: string | null
           first_payment: number
           full_name: string
           id?: string
@@ -55,6 +57,7 @@ export type Database = {
           created_at?: string | null
           deposit_paid?: number | null
           deposit_target?: number | null
+          employee_id?: string | null
           first_payment?: number
           full_name?: string
           id?: string

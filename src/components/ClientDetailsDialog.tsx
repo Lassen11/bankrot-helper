@@ -18,6 +18,7 @@ interface Client {
   monthly_payment: number;
   installment_period: number;
   payment_day: number;
+  employee_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +44,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
   const [client, setClient] = useState<Client | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [employeeName, setEmployeeName] = useState<string>("");
 
   useEffect(() => {
     if (open && clientId) {
@@ -63,6 +65,19 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
         .single();
 
       if (clientError) throw clientError;
+
+      // Получаем информацию о сотруднике
+      if (clientData.employee_id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', clientData.employee_id)
+          .single();
+        
+        setEmployeeName(profileData?.full_name || 'Не указан');
+      } else {
+        setEmployeeName('Не указан');
+      }
 
       // Получаем платежи клиента
       const { data: paymentsData, error: paymentsError } = await supabase
@@ -133,7 +148,12 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>{client.full_name}</span>
+                  <div>
+                    <div>{client.full_name}</div>
+                    <div className="text-sm font-normal text-muted-foreground mt-1">
+                      Ответственный сотрудник: {employeeName}
+                    </div>
+                  </div>
                   <Badge variant={getPaymentStatus(client.total_paid || 0, client.contract_amount).variant}>
                     {getPaymentStatus(client.total_paid || 0, client.contract_amount).label}
                   </Badge>
