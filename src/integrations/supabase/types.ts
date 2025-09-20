@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -31,7 +31,7 @@ export type Database = {
           remaining_amount: number
           total_paid: number | null
           updated_at: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           contract_amount: number
@@ -49,7 +49,7 @@ export type Database = {
           remaining_amount?: number
           total_paid?: number | null
           updated_at?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           contract_amount?: number
@@ -67,7 +67,7 @@ export type Database = {
           remaining_amount?: number
           total_paid?: number | null
           updated_at?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -111,7 +111,15 @@ export type Database = {
           uploaded_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_receipts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
