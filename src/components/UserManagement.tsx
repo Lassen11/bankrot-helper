@@ -248,12 +248,13 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
     try {
       // Удаляем пользователя через Edge Function
       const { data: session } = await supabase.auth.getSession();
-      const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users?userId=${userId}`, {
+      const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session?.session?.access_token}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ userId })
       });
 
       if (!response.ok) {
