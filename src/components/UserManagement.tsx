@@ -98,7 +98,7 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
       // Получаем email адреса из Edge Function
       let authUsers = [];
       try {
-        const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+        const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
           headers: {
             'Authorization': `Bearer ${session.session.access_token}`,
             'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
     try {
       // Создаем пользователя через Edge Function
       const { data: session } = await supabase.auth.getSession();
-      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+      const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session?.session?.access_token}`,
@@ -248,7 +248,7 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
     try {
       // Удаляем пользователя через Edge Function
       const { data: session } = await supabase.auth.getSession();
-      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users?userId=${userId}`, {
+      const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users?userId=${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session?.session?.access_token}`,

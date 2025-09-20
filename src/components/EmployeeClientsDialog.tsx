@@ -78,7 +78,7 @@ export const EmployeeClientsDialog = ({
 
       // Получаем также email пользователей через Edge Function
       try {
-        const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+        const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
           headers: {
             'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
             'Content-Type': 'application/json',

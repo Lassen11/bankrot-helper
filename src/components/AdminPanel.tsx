@@ -109,7 +109,7 @@ export const AdminPanel = () => {
 
       let authUsers = [];
       try {
-        const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+        const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
           headers: {
             'Authorization': `Bearer ${session.session.access_token}`,
             'Content-Type': 'application/json',
@@ -204,7 +204,7 @@ export const AdminPanel = () => {
 
       console.log('Making DELETE request to admin-users function...');
       
-      const response = await fetch(`https://htvbbyoghtoionbvzekw.supabase.co/functions/v1/admin-users`, {
+      const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.session.access_token}`,
