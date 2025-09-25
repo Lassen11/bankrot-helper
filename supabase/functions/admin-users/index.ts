@@ -176,7 +176,7 @@ serve(async (req) => {
 
           userId = newUser.user.id
           
-          // Создаем профиль пользователя вручную
+          // Создаем профиль пользователя вручную только если его нет
           const { error: profileInsertError } = await supabaseAdmin
             .from('profiles')
             .insert([
@@ -186,12 +186,12 @@ serve(async (req) => {
               }
             ])
           
-          if (profileInsertError) {
+          if (profileInsertError && profileInsertError.code !== '23505') {
             console.error('Ошибка создания профиля:', profileInsertError);
-            // Не прерываем выполнение, так как профиль может быть создан триггером
+            throw profileInsertError;
           }
           
-          // Создаем роль для нового пользователя
+          // Создаем роль для нового пользователя только если её нет
           const { error: roleInsertError } = await supabaseAdmin
             .from('user_roles')
             .insert([
@@ -202,8 +202,9 @@ serve(async (req) => {
               }
             ])
 
-          if (roleInsertError) {
-            throw roleInsertError
+          if (roleInsertError && roleInsertError.code !== '23505') {
+            console.error('Ошибка создания роли:', roleInsertError);
+            throw roleInsertError;
           }
         }
 
@@ -257,9 +258,9 @@ serve(async (req) => {
         )
     }
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || 'Unknown error' }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
