@@ -221,20 +221,17 @@ export const PaymentSchedule = ({
     const depositTarget = clientData.deposit_target || 50000;
     
     if (newCompletedStatus) {
-      // При выполнении платежа
+      // При выполнении платежа - засчитываем полную сумму в оба показателя
       newTotalPaid += paymentAmount;
       
-      // Засчитываем в депозит, если еще не достигнута целевая сумма
-      const remainingDepositAmount = Math.max(0, depositTarget - newDepositPaid);
-      const amountToDeposit = Math.min(paymentAmount, remainingDepositAmount);
-      newDepositPaid += amountToDeposit;
+      // Засчитываем в депозит полную сумму платежа, пока не достигнута цель
+      if (newDepositPaid < depositTarget) {
+        newDepositPaid = Math.min(newDepositPaid + paymentAmount, depositTarget);
+      }
     } else {
-      // При отмене платежа
+      // При отмене платежа - вычитаем из обоих показателей
       newTotalPaid = Math.max(0, newTotalPaid - paymentAmount);
-      
-      // Уменьшаем депозит на сумму платежа, но не меньше 0
-      const amountToRemoveFromDeposit = Math.min(paymentAmount, newDepositPaid);
-      newDepositPaid = Math.max(0, newDepositPaid - amountToRemoveFromDeposit);
+      newDepositPaid = Math.max(0, newDepositPaid - paymentAmount);
     }
 
     const { error: clientUpdateError } = await supabase
