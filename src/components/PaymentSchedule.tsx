@@ -206,7 +206,7 @@ export const PaymentSchedule = ({
     // Получаем текущие данные клиента для расчета новой суммы
     const { data: clientData, error: clientFetchError } = await supabase
       .from('clients')
-      .select('total_paid, deposit_paid')
+      .select('total_paid, deposit_paid, deposit_target')
       .eq('id', clientId)
       .single();
 
@@ -215,19 +215,34 @@ export const PaymentSchedule = ({
       return;
     }
 
-    // Рассчитываем новую общую сумму оплаты
+    // Рассчитываем новую общую сумму оплаты и депозит
     let newTotalPaid = clientData.total_paid || 0;
+    let newDepositPaid = clientData.deposit_paid || 0;
+    const depositTarget = clientData.deposit_target || 50000;
     
-    // Все платежи (включая первый) обновляют только total_paid
     if (newCompletedStatus) {
+      // При выполнении платежа
       newTotalPaid += paymentAmount;
+      
+      // Засчитываем в депозит, если еще не достигнута целевая сумма
+      const remainingDepositAmount = Math.max(0, depositTarget - newDepositPaid);
+      const amountToDeposit = Math.min(paymentAmount, remainingDepositAmount);
+      newDepositPaid += amountToDeposit;
     } else {
+      // При отмене платежа
       newTotalPaid = Math.max(0, newTotalPaid - paymentAmount);
+      
+      // Уменьшаем депозит на сумму платежа, но не меньше 0
+      const amountToRemoveFromDeposit = Math.min(paymentAmount, newDepositPaid);
+      newDepositPaid = Math.max(0, newDepositPaid - amountToRemoveFromDeposit);
     }
 
     const { error: clientUpdateError } = await supabase
       .from('clients')
-      .update({ total_paid: newTotalPaid })
+      .update({ 
+        total_paid: newTotalPaid,
+        deposit_paid: newDepositPaid
+      })
       .eq('id', clientId);
 
     if (clientUpdateError) {
