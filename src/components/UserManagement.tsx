@@ -35,6 +35,7 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<'admin' | 'employee'>('employee');
   const [error, setError] = useState<string | null>(null);
 
@@ -159,7 +160,7 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
   };
 
   const handleInviteUser = async () => {
-    if (!newUserEmail || !newUserName) {
+    if (!newUserEmail || !newUserName || !newUserPassword) {
       toast({
         title: "Ошибка",
         description: "Заполните все поля",
@@ -179,7 +180,7 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
         },
         body: JSON.stringify({
           email: newUserEmail,
-          password: 'temp123456',
+          password: newUserPassword,
           full_name: newUserName,
           role: newUserRole
         }),
@@ -192,12 +193,13 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
 
       toast({
         title: "Успешно",
-        description: `Пользователь ${newUserName} добавлен с ролью ${newUserRole === 'admin' ? 'Администратор' : 'Сотрудник'}. Для входа используйте email: ${newUserEmail} и пароль: temp123456`,
+        description: `Пользователь ${newUserName} добавлен с ролью ${newUserRole === 'admin' ? 'Администратор' : 'Сотрудник'}`,
       });
 
       // Сброс формы и обновление списка
       setNewUserEmail('');
       setNewUserName('');
+      setNewUserPassword('');
       setNewUserRole('employee');
       setIsDialogOpen(false);
       fetchUsers();
@@ -385,6 +387,16 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
                   placeholder="Иван Иванов"
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Пароль</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  placeholder="Введите пароль"
                 />
               </div>
               <div>
