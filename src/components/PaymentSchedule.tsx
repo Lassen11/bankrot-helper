@@ -1,11 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Edit, Save, X } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, Edit, Save, X, CalendarIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface PaymentScheduleProps {
   clientId: string;
@@ -44,6 +48,8 @@ export const PaymentSchedule = ({
   const [payments, setPayments] = useState<Payment[]>([]);
   const [editingPayment, setEditingPayment] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState<number>(0);
+  const [editingDate, setEditingDate] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [receiptsCount, setReceiptsCount] = useState<number>(0);
   useEffect(() => {
@@ -315,6 +321,40 @@ export const PaymentSchedule = ({
     setEditAmount(0);
   };
 
+  const startEditingDate = (paymentId: string, currentDate: string) => {
+    setEditingDate(paymentId);
+    setEditDate(new Date(currentDate));
+  };
+
+  const saveCustomDate = async () => {
+    if (!editingDate || !editDate) return;
+
+    const { error } = await supabase
+      .from('payments')
+      .update({ due_date: format(editDate, 'yyyy-MM-dd') })
+      .eq('id', editingDate);
+
+    if (error) {
+      toast.error('Ошибка сохранения даты');
+      return;
+    }
+
+    const updatedPayments = payments.map(p => 
+      p.id === editingDate 
+        ? { ...p, due_date: format(editDate, 'yyyy-MM-dd') }
+        : p
+    );
+    setPayments(updatedPayments);
+    updatePaymentStats(updatedPayments);
+    setEditingDate(null);
+    toast.success('Дата платежа обновлена');
+  };
+
+  const cancelEditingDate = () => {
+    setEditingDate(null);
+    setEditDate(undefined);
+  };
+
   const canCompletePayment = (payment: Payment) => {
     if (payment.is_completed) return true; // Уже выполненный платеж можно отменить
     
@@ -373,14 +413,58 @@ export const PaymentSchedule = ({
                    >
                      {payment.is_completed && <Check className="w-3 h-3" />}
                    </div>
-                  <div>
-                    <span className={`text-sm font-medium ${payment.is_completed ? 'line-through' : ''}`}>
-                      {paymentType}
-                    </span>
-                    <p className={`text-xs text-muted-foreground ${payment.is_completed ? 'line-through' : ''}`}>
-                      {new Date(payment.due_date).toLocaleDateString('ru-RU')}
-                    </p>
-                  </div>
+                   <div>
+                     <span className={`text-sm font-medium ${payment.is_completed ? 'line-through' : ''}`}>
+                       {paymentType}
+                     </span>
+                     {editingDate === payment.id ? (
+                       <div className="flex items-center gap-2 mt-1">
+                         <Popover>
+                           <PopoverTrigger asChild>
+                             <Button
+                               variant="outline"
+                               className={cn(
+                                 "h-6 px-2 text-xs font-normal",
+                                 !editDate && "text-muted-foreground"
+                               )}
+                             >
+                               <CalendarIcon className="h-3 w-3" />
+                               {editDate ? format(editDate, "dd.MM.yyyy") : "Выберите дату"}
+                             </Button>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-auto p-0" align="start">
+                             <Calendar
+                               mode="single"
+                               selected={editDate}
+                               onSelect={setEditDate}
+                               initialFocus
+                               className={cn("p-3 pointer-events-auto")}
+                             />
+                           </PopoverContent>
+                         </Popover>
+                         <Button onClick={saveCustomDate} size="sm" variant="ghost" className="h-6 w-6 p-0">
+                           <Save className="w-3 h-3" />
+                         </Button>
+                         <Button onClick={cancelEditingDate} size="sm" variant="ghost" className="h-6 w-6 p-0">
+                           <X className="w-3 h-3" />
+                         </Button>
+                       </div>
+                     ) : (
+                       <div className="flex items-center gap-1 group/date">
+                         <p className={`text-xs text-muted-foreground ${payment.is_completed ? 'line-through' : ''}`}>
+                           {new Date(payment.due_date).toLocaleDateString('ru-RU')}
+                         </p>
+                         <Button 
+                           onClick={() => startEditingDate(payment.id, payment.due_date)}
+                           size="sm" 
+                           variant="ghost" 
+                           className="h-4 w-4 p-0 opacity-0 group-hover/date:opacity-100 hover:opacity-100 transition-opacity"
+                         >
+                           <CalendarIcon className="w-3 h-3" />
+                         </Button>
+                       </div>
+                     )}
+                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
