@@ -203,9 +203,6 @@ export default function ClientView() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold">{client.full_name}</h1>
-              <p className="text-muted-foreground">
-                Договор от {new Date(client.created_at).toLocaleDateString('ru-RU')}
-              </p>
             </div>
           </div>
           <Badge variant={paymentStatus.variant}>
