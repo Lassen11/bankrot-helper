@@ -5,7 +5,7 @@ import { ClientsList } from "@/components/ClientsList";
 import { AdminPanel } from "@/components/AdminPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, UserPlus, TrendingUp } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Calendar, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -18,6 +18,10 @@ const Index = () => {
     totalClients: 0,
     totalContractAmount: 0,
     activeCases: 0,
+    totalPaymentsCount: 0,
+    completedPaymentsCount: 0,
+    totalPaymentsSum: 0,
+    completedPaymentsSum: 0,
     loading: true
   });
 
@@ -33,7 +37,7 @@ const Index = () => {
     try {
       let query = supabase
         .from('clients')
-        .select('contract_amount, total_paid');
+        .select('contract_amount, total_paid, id');
       
       // Если не админ, показываем только своих клиентов
       if (!isAdmin) {
@@ -56,10 +60,51 @@ const Index = () => {
           return totalPaid < contractAmount; // Активные дела - где еще есть задолженность
         }).length;
 
+        // Получаем платежи за текущий месяц для клиентов сотрудника
+        const currentDate = new Date();
+        const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+        let paymentsQuery = supabase
+          .from('payments')
+          .select('original_amount, custom_amount, is_completed, client_id')
+          .gte('due_date', startDate.toISOString().split('T')[0])
+          .lte('due_date', endDate.toISOString().split('T')[0])
+          .neq('payment_number', 0);
+
+        if (!isAdmin) {
+          const clientIds = clients.map(c => c.id);
+          paymentsQuery = paymentsQuery.in('client_id', clientIds);
+        }
+
+        const { data: payments, error: paymentsError } = await paymentsQuery;
+
+        if (paymentsError) throw paymentsError;
+
+        let totalPaymentsCount = 0;
+        let completedPaymentsCount = 0;
+        let totalPaymentsSum = 0;
+        let completedPaymentsSum = 0;
+
+        payments?.forEach(payment => {
+          const amount = payment.custom_amount ?? payment.original_amount;
+          totalPaymentsCount++;
+          totalPaymentsSum += amount;
+
+          if (payment.is_completed) {
+            completedPaymentsCount++;
+            completedPaymentsSum += amount;
+          }
+        });
+
         setMetrics({
           totalClients,
           totalContractAmount,
           activeCases,
+          totalPaymentsCount,
+          completedPaymentsCount,
+          totalPaymentsSum,
+          completedPaymentsSum,
           loading: false
         });
       }
@@ -108,7 +153,7 @@ const Index = () => {
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center">
@@ -157,6 +202,42 @@ const Index = () => {
                     </p>
                     <p className="text-2xl font-bold text-orange-600">
                       {metrics.loading ? '-' : metrics.activeCases}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-blue-500/10 rounded-full">
+                    <Calendar className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Количество платежей
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {metrics.loading ? '-' : `${metrics.totalPaymentsCount}/${metrics.completedPaymentsCount}`}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-purple-500/10 rounded-full">
+                    <DollarSign className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Сумма платежей
+                    </p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {metrics.loading ? '-' : `${Math.round(metrics.totalPaymentsSum)}/${Math.round(metrics.completedPaymentsSum)} ₽`}
                     </p>
                   </div>
                 </div>
