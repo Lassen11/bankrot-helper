@@ -19,7 +19,11 @@ interface Payment {
   client_name?: string;
 }
 
-export const PaymentsCalendar = () => {
+interface PaymentsCalendarProps {
+  employeeId?: string | null;
+}
+
+export const PaymentsCalendar = ({ employeeId }: PaymentsCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +32,7 @@ export const PaymentsCalendar = () => {
 
   useEffect(() => {
     fetchPayments();
-  }, [currentMonth]);
+  }, [currentMonth, employeeId]);
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -36,7 +40,7 @@ export const PaymentsCalendar = () => {
       const monthStart = startOfMonth(currentMonth);
       const monthEnd = endOfMonth(currentMonth);
 
-      const { data: paymentsData, error: paymentsError } = await supabase
+      let query = supabase
         .from('payments')
         .select(`
           id,
@@ -46,11 +50,18 @@ export const PaymentsCalendar = () => {
           original_amount,
           is_completed,
           payment_type,
-          clients!inner(full_name)
+          clients!inner(full_name, employee_id)
         `)
         .gte('due_date', format(monthStart, 'yyyy-MM-dd'))
         .lte('due_date', format(monthEnd, 'yyyy-MM-dd'))
         .order('due_date', { ascending: true });
+
+      // Если передан employeeId, фильтруем по клиентам этого сотрудника
+      if (employeeId) {
+        query = query.eq('clients.employee_id', employeeId);
+      }
+
+      const { data: paymentsData, error: paymentsError } = await query;
 
       if (paymentsError) throw paymentsError;
 
