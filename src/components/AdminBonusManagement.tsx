@@ -67,35 +67,30 @@ export const AdminBonusManagement = () => {
           .eq('year', parseInt(selectedYear))
           .maybeSingle();
 
-        // Получаем статистику платежей
-        const { data: paymentsData } = await supabase
+        // Получаем ВСЕ платежи за месяц (не только завершенные)
+        const { data: allPaymentsData } = await supabase
           .from('payments')
-          .select('client_id, custom_amount, original_amount, is_completed')
+          .select('custom_amount, original_amount, is_completed')
           .eq('user_id', role.user_id)
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
           .neq('payment_number', 0);
 
-        const completedPayments = paymentsData?.filter(p => p.is_completed) || [];
-        const uniqueClients = new Set(completedPayments.map(p => p.client_id));
-        const totalPayments = completedPayments.reduce((sum, p) => 
+        const completedPayments = allPaymentsData?.filter(p => p.is_completed) || [];
+        const totalExpectedPayments = allPaymentsData?.length || 0;
+        const completedPaymentsCount = completedPayments.length;
+        const totalCompletedAmount = completedPayments.reduce((sum, p) => 
           sum + Number(p.custom_amount || p.original_amount || 0), 0
         );
-
-        // Получаем общее количество клиентов
-        const { data: clientsData } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('employee_id', role.user_id);
 
         bonusData.push({
           employee_id: role.user_id,
           employee_name: employeeMap.get(role.user_id) || 'Не указано',
           reviews_count: bonusRecord?.reviews_count || 0,
           agents_count: bonusRecord?.agents_count || 0,
-          completedClients: uniqueClients.size,
-          totalPayments,
-          clientsTotal: clientsData?.length || 0,
+          completedClients: completedPaymentsCount,
+          totalPayments: totalCompletedAmount,
+          clientsTotal: totalExpectedPayments,
         });
       }
 
@@ -139,9 +134,12 @@ export const AdminBonusManagement = () => {
   const calculatePerformanceBonus = (data: EmployeeBonusData) => {
     if (data.clientsTotal === 0) return 0;
 
-    const clientsPercent = (data.completedClients / data.clientsTotal) * 100;
-    const paymentsPercent = Math.min((data.totalPayments / (data.clientsTotal * 50000)) * 100, 100);
-    const averagePercent = (clientsPercent + paymentsPercent) / 2;
+    const paymentsCountPercent = (data.completedClients / data.clientsTotal) * 100;
+    const expectedAmount = data.clientsTotal * 50000;
+    const paymentsAmountPercent = expectedAmount > 0
+      ? Math.min((data.totalPayments / expectedAmount) * 100, 100)
+      : 0;
+    const averagePercent = (paymentsCountPercent + paymentsAmountPercent) / 2;
 
     if (data.employee_name === 'Алина Васильева' && averagePercent >= 90) {
       return 10000;
@@ -223,13 +221,14 @@ export const AdminBonusManagement = () => {
 
       {/* Список сотрудников с премиями */}
       {employeeBonuses.map((employee) => {
-        const clientsPercent = employee.clientsTotal > 0 
+        const paymentsCountPercent = employee.clientsTotal > 0 
           ? ((employee.completedClients / employee.clientsTotal) * 100).toFixed(1)
           : '0.0';
-        const paymentsPercent = employee.clientsTotal > 0 
-          ? Math.min((employee.totalPayments / (employee.clientsTotal * 50000)) * 100, 100).toFixed(1)
+        const expectedAmount = employee.clientsTotal * 50000;
+        const paymentsAmountPercent = expectedAmount > 0 
+          ? Math.min((employee.totalPayments / expectedAmount) * 100, 100).toFixed(1)
           : '0.0';
-        const averagePercent = ((Number(clientsPercent) + Number(paymentsPercent)) / 2).toFixed(1);
+        const averagePercent = ((Number(paymentsCountPercent) + Number(paymentsAmountPercent)) / 2).toFixed(1);
 
         const performanceBonus = calculatePerformanceBonus(employee);
         const reviewsBonus = calculateReviewsBonus(employee.reviews_count);
@@ -256,14 +255,14 @@ export const AdminBonusManagement = () => {
                 <h3 className="font-semibold">Показатели эффективности</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-muted rounded-lg">
-                    <div className="text-sm text-muted-foreground">Оплаченные клиенты</div>
+                    <div className="text-sm text-muted-foreground">Количество платежей</div>
                     <div className="text-xl font-bold">{employee.completedClients} / {employee.clientsTotal}</div>
-                    <div className="text-sm text-muted-foreground">{clientsPercent}%</div>
+                    <div className="text-sm text-muted-foreground">{paymentsCountPercent}%</div>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
                     <div className="text-sm text-muted-foreground">Сумма платежей</div>
                     <div className="text-xl font-bold">{employee.totalPayments.toLocaleString()} ₽</div>
-                    <div className="text-sm text-muted-foreground">{paymentsPercent}%</div>
+                    <div className="text-sm text-muted-foreground">{paymentsAmountPercent}%</div>
                   </div>
                 </div>
                 <div className="p-3 bg-primary/10 rounded-lg">

@@ -76,31 +76,30 @@ export const EmployeeBonus = () => {
       const startDate = new Date(currentYear, currentMonth - 1, 1);
       const endDate = new Date(currentYear, currentMonth, 0);
 
-      const { data: paymentsData } = await supabase
+      // Получаем ВСЕ платежи за месяц (не только завершенные)
+      const { data: allPaymentsData } = await supabase
         .from('payments')
-        .select('client_id, custom_amount, original_amount, is_completed')
+        .select('custom_amount, original_amount, is_completed')
         .eq('user_id', user.id)
         .gte('due_date', startDate.toISOString().split('T')[0])
         .lte('due_date', endDate.toISOString().split('T')[0])
         .neq('payment_number', 0);
 
-      if (paymentsData) {
-        const completedPayments = paymentsData.filter(p => p.is_completed);
-        const uniqueClients = new Set(completedPayments.map(p => p.client_id));
-        const totalPayments = completedPayments.reduce((sum, p) => 
+      if (allPaymentsData) {
+        const completedPayments = allPaymentsData.filter(p => p.is_completed);
+        const totalExpectedPayments = allPaymentsData.length;
+        const completedPaymentsCount = completedPayments.length;
+        const totalCompletedAmount = completedPayments.reduce((sum, p) => 
+          sum + Number(p.custom_amount || p.original_amount || 0), 0
+        );
+        const totalExpectedAmount = allPaymentsData.reduce((sum, p) => 
           sum + Number(p.custom_amount || p.original_amount || 0), 0
         );
 
-        // Получаем общее количество клиентов
-        const { data: clientsData } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('employee_id', user.id);
-
         setStats({
-          completedClients: uniqueClients.size,
-          totalPayments,
-          clientsTotal: clientsData?.length || 0,
+          completedClients: completedPaymentsCount,
+          totalPayments: totalCompletedAmount,
+          clientsTotal: totalExpectedPayments,
         });
       }
     } catch (error) {
@@ -143,9 +142,12 @@ export const EmployeeBonus = () => {
   const calculatePerformanceBonus = () => {
     if (stats.clientsTotal === 0) return 0;
 
-    const clientsPercent = (stats.completedClients / stats.clientsTotal) * 100;
-    const paymentsPercent = Math.min((stats.totalPayments / (stats.clientsTotal * 50000)) * 100, 100);
-    const averagePercent = (clientsPercent + paymentsPercent) / 2;
+    const paymentsCountPercent = (stats.completedClients / stats.clientsTotal) * 100;
+    const expectedAmount = stats.clientsTotal * 50000;
+    const paymentsAmountPercent = expectedAmount > 0
+      ? Math.min((stats.totalPayments / expectedAmount) * 100, 100)
+      : 0;
+    const averagePercent = (paymentsCountPercent + paymentsAmountPercent) / 2;
 
     // Специальные бонусы для конкретных сотрудников
     if (employeeName === 'Алина Васильева' && averagePercent >= 90) {
@@ -169,13 +171,14 @@ export const EmployeeBonus = () => {
   const totalBonus = calculatePerformanceBonus() + calculateReviewsBonus() + calculateAgentsBonus();
   const totalSalary = baseSalary + totalBonus;
 
-  const clientsPercent = stats.clientsTotal > 0 
+  const paymentsCountPercent = stats.clientsTotal > 0 
     ? ((stats.completedClients / stats.clientsTotal) * 100).toFixed(1)
     : '0.0';
-  const paymentsPercent = stats.clientsTotal > 0 
-    ? Math.min((stats.totalPayments / (stats.clientsTotal * 50000)) * 100, 100).toFixed(1)
+  const expectedAmount = stats.clientsTotal * 50000;
+  const paymentsAmountPercent = expectedAmount > 0 
+    ? Math.min((stats.totalPayments / expectedAmount) * 100, 100).toFixed(1)
     : '0.0';
-  const averagePercent = ((Number(clientsPercent) + Number(paymentsPercent)) / 2).toFixed(1);
+  const averagePercent = ((Number(paymentsCountPercent) + Number(paymentsAmountPercent)) / 2).toFixed(1);
 
   if (loading) {
     return (
@@ -206,14 +209,14 @@ export const EmployeeBonus = () => {
           <h3 className="font-semibold">Показатели эффективности</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 bg-muted rounded-lg">
-              <div className="text-sm text-muted-foreground">Оплаченные клиенты</div>
+              <div className="text-sm text-muted-foreground">Количество платежей</div>
               <div className="text-xl font-bold">{stats.completedClients} / {stats.clientsTotal}</div>
-              <div className="text-sm text-muted-foreground">{clientsPercent}%</div>
+              <div className="text-sm text-muted-foreground">{paymentsCountPercent}%</div>
             </div>
             <div className="p-3 bg-muted rounded-lg">
               <div className="text-sm text-muted-foreground">Сумма платежей</div>
               <div className="text-xl font-bold">{stats.totalPayments.toLocaleString()} ₽</div>
-              <div className="text-sm text-muted-foreground">{paymentsPercent}%</div>
+              <div className="text-sm text-muted-foreground">{paymentsAmountPercent}%</div>
             </div>
           </div>
           <div className="p-3 bg-primary/10 rounded-lg">
