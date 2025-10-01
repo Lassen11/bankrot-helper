@@ -10,6 +10,7 @@ import { UserManagement } from "./UserManagement";
 import { EmployeeClientsDialog } from "./EmployeeClientsDialog";
 import { ClientForm } from "./ClientForm";
 import { ImportExportPanel } from "./ImportExportPanel";
+import { PaymentsCalendar } from "./PaymentsCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -346,6 +347,9 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Календарь платежей */}
+          <PaymentsCalendar />
         </TabsContent>
 
         <TabsContent value="employees" className="space-y-6">
