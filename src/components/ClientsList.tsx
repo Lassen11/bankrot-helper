@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, Eye } from "lucide-react";
+import { Search, UserPlus, Eye, CalendarDays } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { ClientDetailsDialog } from "./ClientDetailsDialog";
 
 interface Client {
   id: string;
@@ -34,6 +35,8 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [employeesMap, setEmployeesMap] = useState<Record<string, string>>({});
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchClients = async () => {
@@ -129,6 +132,11 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
     return { text: "Не начато", variant: "destructive" as const, color: "bg-red-500" };
   };
 
+  const handleOpenPayments = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setIsDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <Card>
@@ -142,7 +150,13 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <ClientDetailsDialog 
+        clientId={selectedClientId}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+      />
+      <div className="space-y-6">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
         <Input
@@ -187,6 +201,14 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
                         <div className={`w-2 h-2 rounded-full ${status.color} mr-2`}></div>
                         {status.text}
                       </Badge>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleOpenPayments(client.id)}
+                      >
+                        <CalendarDays className="h-4 w-4 mr-2" />
+                        Платежи
+                      </Button>
                       <Link to={`/client/${client.id}`}>
                         <Button variant="outline" size="sm">
                           <Eye className="h-4 w-4 mr-2" />
@@ -246,6 +268,7 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
