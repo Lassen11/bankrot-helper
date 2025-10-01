@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, TrendingUp, Building, Trash2 } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -20,6 +21,8 @@ interface AdminMetrics {
   totalClients: number;
   totalContractAmount: number;
   activeCases: number;
+  paymentsCount: number;
+  paymentsSum: number;
   loading: boolean;
 }
 
@@ -35,11 +38,16 @@ interface EmployeeStats {
 export const AdminPanel = () => {
   const { user } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<string>((currentDate.getMonth() + 1).toString());
+  const [selectedYear, setSelectedYear] = useState<string>(currentDate.getFullYear().toString());
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalUsers: 0,
     totalClients: 0,
     totalContractAmount: 0,
     activeCases: 0,
+    paymentsCount: 0,
+    paymentsSum: 0,
     loading: true
   });
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
@@ -54,18 +62,21 @@ export const AdminPanel = () => {
     // Только если пользователь авторизован и является админом
     fetchAdminMetrics();
     fetchEmployeeStats();
-  }, [user, isAdmin, roleLoading]);
+  }, [user, isAdmin, roleLoading, selectedMonth, selectedYear]);
 
   const fetchAdminMetrics = async () => {
     if (!user) return;
 
     try {
-      // Получаем общее количество пользователей
-      const { data: usersData, error: usersError } = await supabase
-        .from('profiles')
-        .select('user_id');
+      // Получаем роли пользователей для исключения администраторов
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
 
-      if (usersError) throw usersError;
+      if (rolesError) throw rolesError;
+
+      // Подсчитываем только сотрудников (исключаем администраторов)
+      const employeeCount = userRoles?.filter(ur => ur.role === 'employee').length || 0;
 
       // Получаем всех клиентов
       const { data: clients, error: clientsError } = await supabase
@@ -74,7 +85,6 @@ export const AdminPanel = () => {
 
       if (clientsError) throw clientsError;
 
-      const totalUsers = usersData?.length || 0;
       const totalClients = clients?.length || 0;
       const totalContractAmount = clients?.reduce((sum, client) => sum + (client.contract_amount || 0), 0) || 0;
       const activeCases = clients?.filter(client => {
@@ -83,11 +93,31 @@ export const AdminPanel = () => {
         return totalPaid < contractAmount;
       }).length || 0;
 
+      // Получаем платежи за выбранный месяц
+      const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
+      const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
+      
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('original_amount, custom_amount, is_completed')
+        .gte('due_date', startDate.toISOString().split('T')[0])
+        .lte('due_date', endDate.toISOString().split('T')[0]);
+
+      if (paymentsError) throw paymentsError;
+
+      const paymentsCount = payments?.length || 0;
+      const paymentsSum = payments?.reduce((sum, payment) => {
+        const amount = payment.custom_amount || payment.original_amount || 0;
+        return sum + amount;
+      }, 0) || 0;
+
       setMetrics({
-        totalUsers,
+        totalUsers: employeeCount,
         totalClients,
         totalContractAmount,
         activeCases,
+        paymentsCount,
+        paymentsSum,
         loading: false
       });
     } catch (error) {
@@ -273,8 +303,48 @@ export const AdminPanel = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* Фильтр по дате */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium">Период платежей:</span>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Выберите месяц" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Январь</SelectItem>
+                    <SelectItem value="2">Февраль</SelectItem>
+                    <SelectItem value="3">Март</SelectItem>
+                    <SelectItem value="4">Апрель</SelectItem>
+                    <SelectItem value="5">Май</SelectItem>
+                    <SelectItem value="6">Июнь</SelectItem>
+                    <SelectItem value="7">Июль</SelectItem>
+                    <SelectItem value="8">Август</SelectItem>
+                    <SelectItem value="9">Сентябрь</SelectItem>
+                    <SelectItem value="10">Октябрь</SelectItem>
+                    <SelectItem value="11">Ноябрь</SelectItem>
+                    <SelectItem value="12">Декабрь</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Год" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[2023, 2024, 2025, 2026, 2027].map(year => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Общая статистика */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center">
@@ -341,6 +411,45 @@ export const AdminPanel = () => {
                     </p>
                     <p className="text-2xl font-bold text-orange-600">
                       {metrics.loading ? '-' : metrics.activeCases}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Метрики платежей за выбранный период */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-purple-500/10 rounded-full">
+                    <Receipt className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Количество платежей
+                    </p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {metrics.loading ? '-' : metrics.paymentsCount}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-emerald-500/10 rounded-full">
+                    <DollarSign className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Сумма платежей
+                    </p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {metrics.loading ? '-' : formatAmount(metrics.paymentsSum)}
                     </p>
                   </div>
                 </div>
