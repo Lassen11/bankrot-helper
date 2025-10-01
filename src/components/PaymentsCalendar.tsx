@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday, isBefore, isAfter, addDays } from "date-fns";
 import { ru } from "date-fns/locale";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Payment {
   id: string;
@@ -22,6 +23,8 @@ export const PaymentsCalendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchPayments();
@@ -116,6 +119,16 @@ export const PaymentsCalendar = () => {
     }
   };
 
+  const handleDayClick = (date: Date) => {
+    const datePayments = getPaymentsForDate(date);
+    if (datePayments.length > 0) {
+      setSelectedDate(date);
+      setIsDialogOpen(true);
+    }
+  };
+
+  const selectedDatePayments = selectedDate ? getPaymentsForDate(selectedDate) : [];
+
   return (
     <Card>
       <CardHeader>
@@ -177,9 +190,10 @@ export const PaymentsCalendar = () => {
                 return (
                   <div
                     key={day.toISOString()}
+                    onClick={() => handleDayClick(day)}
                     className={`aspect-square border rounded-lg p-2 relative ${statusColor} ${
                       isToday(day) ? 'ring-2 ring-primary' : ''
-                    }`}
+                    } ${dayPayments.length > 0 ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                   >
                     <div className="text-sm font-medium">
                       {format(day, 'd')}
@@ -198,6 +212,38 @@ export const PaymentsCalendar = () => {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Платежи на {selectedDate && format(selectedDate, 'd MMMM yyyy', { locale: ru })}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedDatePayments.map((payment) => (
+              <Card key={payment.id}>
+                <CardContent className="pt-6">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <div className="font-semibold">{payment.client_name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Тип: {payment.payment_type === 'deposit' ? 'Задаток' : 'Ежемесячный платеж'}
+                      </div>
+                      <div className="text-sm">
+                        Сумма: {(payment.custom_amount || payment.original_amount).toLocaleString('ru-RU')} ₽
+                      </div>
+                    </div>
+                    <Badge variant={payment.is_completed ? "default" : "secondary"}>
+                      {payment.is_completed ? 'Оплачен' : 'Не оплачен'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
