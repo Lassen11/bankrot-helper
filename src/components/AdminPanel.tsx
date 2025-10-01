@@ -43,6 +43,7 @@ export const AdminPanel = () => {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState<string>((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(currentDate.getFullYear().toString());
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalUsers: 0,
     totalClients: 0,
@@ -66,7 +67,7 @@ export const AdminPanel = () => {
     // Только если пользователь авторизован и является админом
     fetchAdminMetrics();
     fetchEmployeeStats();
-  }, [user, isAdmin, roleLoading, selectedMonth, selectedYear]);
+  }, [user, isAdmin, roleLoading, selectedMonth, selectedYear, selectedEmployee]);
 
   const fetchAdminMetrics = async () => {
     if (!user) return;
@@ -101,12 +102,19 @@ export const AdminPanel = () => {
       const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
       const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
       
-      const { data: payments, error: paymentsError } = await supabase
+      let paymentsQuery = supabase
         .from('payments')
-        .select('original_amount, custom_amount, is_completed')
+        .select('original_amount, custom_amount, is_completed, clients!inner(employee_id)')
         .gte('due_date', startDate.toISOString().split('T')[0])
         .lte('due_date', endDate.toISOString().split('T')[0])
         .neq('payment_number', 0);
+
+      // Фильтруем по сотруднику если выбран
+      if (selectedEmployee !== 'all') {
+        paymentsQuery = paymentsQuery.eq('clients.employee_id', selectedEmployee);
+      }
+
+      const { data: payments, error: paymentsError } = await paymentsQuery;
 
       if (paymentsError) throw paymentsError;
 
@@ -320,7 +328,7 @@ export const AdminPanel = () => {
           {/* Фильтр по дате */}
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <span className="text-sm font-medium">Период платежей:</span>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                   <SelectTrigger className="w-[180px]">
@@ -349,6 +357,21 @@ export const AdminPanel = () => {
                     {[2023, 2024, 2025, 2026, 2027].map(year => (
                       <SelectItem key={year} value={year.toString()}>
                         {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <span className="text-sm font-medium">Сотрудник:</span>
+                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Все сотрудники" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все сотрудники</SelectItem>
+                    {employeeStats.map(employee => (
+                      <SelectItem key={employee.user_id} value={employee.user_id}>
+                        {employee.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
