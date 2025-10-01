@@ -3,8 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, CreditCard, User, FileText, Phone, Mail } from "lucide-react";
+import { Calendar, CreditCard, User, CalendarIcon, Check, X, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface Client {
   id: string;
@@ -45,6 +51,9 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [employeeName, setEmployeeName] = useState<string>("");
+  const [editingDateId, setEditingDateId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open && clientId) {
@@ -124,6 +133,48 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     if (percentage >= 100) return { label: "Полностью оплачено", variant: "default" as const };
     if (percentage >= 50) return { label: "Частично оплачено", variant: "secondary" as const };
     return { label: "Начальный этап", variant: "outline" as const };
+  };
+
+  const startEditingDate = (paymentId: string, currentDate: string) => {
+    setEditingDateId(paymentId);
+    setEditDate(new Date(currentDate));
+  };
+
+  const saveCustomDate = async (paymentId: string) => {
+    if (!editDate) return;
+
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .update({ due_date: format(editDate, 'yyyy-MM-dd') })
+        .eq('id', paymentId);
+
+      if (error) throw error;
+
+      setPayments(payments.map(p => 
+        p.id === paymentId ? { ...p, due_date: format(editDate, 'yyyy-MM-dd') } : p
+      ));
+
+      toast({
+        title: "Успешно",
+        description: "Дата платежа обновлена",
+      });
+
+      setEditingDateId(null);
+      setEditDate(undefined);
+    } catch (error) {
+      console.error('Error updating payment date:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить дату платежа",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const cancelEditingDate = () => {
+    setEditingDateId(null);
+    setEditDate(undefined);
   };
 
   if (!client && !loading) return null;
@@ -254,7 +305,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                   <div className="space-y-2">
                     {payments.map((payment) => (
                       <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="space-y-1">
+                        <div className="space-y-1 flex-1">
                           <p className="font-medium">
                             Платеж #{payment.payment_number} 
                             <span className="text-sm text-muted-foreground ml-2">
@@ -262,9 +313,63 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                                 payment.payment_type === 'deposit' ? 'Депозит' : 'Ежемесячный'})
                             </span>
                           </p>
-                          <p className="text-sm text-muted-foreground">
-                            Срок: {formatDate(payment.due_date)}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            {editingDateId === payment.id ? (
+                              <div className="flex items-center gap-2">
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className={cn(
+                                        "justify-start text-left font-normal",
+                                        !editDate && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {editDate ? format(editDate, "dd.MM.yyyy") : "Выберите дату"}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <CalendarComponent
+                                      mode="single"
+                                      selected={editDate}
+                                      onSelect={setEditDate}
+                                      initialFocus
+                                      className={cn("p-3 pointer-events-auto")}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => saveCustomDate(payment.id)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={cancelEditingDate}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm text-muted-foreground">
+                                  Срок: {formatDate(payment.due_date)}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => startEditingDate(payment.id, payment.due_date)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right">
