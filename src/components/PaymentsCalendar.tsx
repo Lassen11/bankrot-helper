@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday, isBefore, isAfter, addDays } from "date-fns";
 import { ru } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ClientDetailsDialog } from "@/components/ClientDetailsDialog";
 
 interface Payment {
   id: string;
@@ -23,12 +24,18 @@ interface PaymentsCalendarProps {
   employeeId?: string | null;
 }
 
+interface PaymentsCalendarProps {
+  employeeId?: string | null;
+}
+
 export const PaymentsCalendar = ({ employeeId }: PaymentsCalendarProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchPayments();
@@ -140,6 +147,18 @@ export const PaymentsCalendar = ({ employeeId }: PaymentsCalendarProps) => {
 
   const selectedDatePayments = selectedDate ? getPaymentsForDate(selectedDate) : [];
 
+  const handleClientClick = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setIsClientDialogOpen(true);
+  };
+
+  const handleClientDialogClose = () => {
+    setIsClientDialogOpen(false);
+    setSelectedClientId(null);
+    // Обновляем данные после закрытия диалога
+    fetchPayments();
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -233,7 +252,7 @@ export const PaymentsCalendar = ({ employeeId }: PaymentsCalendarProps) => {
           </DialogHeader>
           <div className="space-y-4">
             {selectedDatePayments.map((payment) => (
-              <Card key={payment.id}>
+              <Card key={payment.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleClientClick(payment.client_id)}>
                 <CardContent className="pt-6">
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
@@ -255,6 +274,12 @@ export const PaymentsCalendar = ({ employeeId }: PaymentsCalendarProps) => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ClientDetailsDialog
+        clientId={selectedClientId}
+        open={isClientDialogOpen}
+        onOpenChange={handleClientDialogClose}
+      />
     </Card>
   );
 };

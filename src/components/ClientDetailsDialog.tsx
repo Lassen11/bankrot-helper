@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, CreditCard, User, CalendarIcon, Check, X, Pencil } from "lucide-react";
+import { Calendar, CreditCard, User, CalendarIcon, Check, X, Pencil, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -53,6 +54,8 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
   const [employeeName, setEmployeeName] = useState<string>("");
   const [editingDateId, setEditingDateId] = useState<string | null>(null);
   const [editDate, setEditDate] = useState<Date | undefined>(undefined);
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [editedClient, setEditedClient] = useState<Partial<Client>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -177,15 +180,81 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     setEditDate(undefined);
   };
 
+  const startEditingClient = () => {
+    if (!client) return;
+    setEditedClient({
+      full_name: client.full_name,
+      contract_amount: client.contract_amount,
+      first_payment: client.first_payment,
+      monthly_payment: client.monthly_payment,
+      installment_period: client.installment_period,
+      payment_day: client.payment_day,
+      deposit_target: client.deposit_target
+    });
+    setIsEditingClient(true);
+  };
+
+  const saveClientEdits = async () => {
+    if (!client || !clientId) return;
+
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update(editedClient)
+        .eq('id', clientId);
+
+      if (error) throw error;
+
+      setClient({ ...client, ...editedClient });
+      setIsEditingClient(false);
+      
+      toast({
+        title: "Успешно",
+        description: "Данные клиента обновлены",
+      });
+    } catch (error) {
+      console.error('Error updating client:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить данные клиента",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const cancelEditingClient = () => {
+    setIsEditingClient(false);
+    setEditedClient({});
+  };
+
   if (!client && !loading) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Информация о клиенте
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Информация о клиенте
+            </div>
+            {!isEditingClient ? (
+              <Button variant="outline" size="sm" onClick={startEditingClient}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Редактировать
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="default" size="sm" onClick={saveClientEdits}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Сохранить
+                </Button>
+                <Button variant="outline" size="sm" onClick={cancelEditingClient}>
+                  <X className="h-4 w-4 mr-2" />
+                  Отмена
+                </Button>
+              </div>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -200,7 +269,15 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div>
-                    <div>{client.full_name}</div>
+                    {isEditingClient ? (
+                      <Input
+                        value={editedClient.full_name || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, full_name: e.target.value })}
+                        className="text-xl font-bold"
+                      />
+                    ) : (
+                      <div>{client.full_name}</div>
+                    )}
                     <div className="text-sm font-normal text-muted-foreground mt-1">
                       Ответственный сотрудник: {employeeName}
                     </div>
@@ -214,9 +291,17 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Сумма договора</p>
-                    <p className="text-lg font-semibold text-green-600">
-                      {formatAmount(client.contract_amount)}
-                    </p>
+                    {isEditingClient ? (
+                      <Input
+                        type="number"
+                        value={editedClient.contract_amount || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, contract_amount: parseFloat(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="text-lg font-semibold text-green-600">
+                        {formatAmount(client.contract_amount)}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Оплачено</p>
@@ -243,19 +328,53 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Первый взнос</p>
-                    <p className="font-medium">{formatAmount(client.first_payment)}</p>
+                    {isEditingClient ? (
+                      <Input
+                        type="number"
+                        value={editedClient.first_payment || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, first_payment: parseFloat(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="font-medium">{formatAmount(client.first_payment)}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Ежемесячный платеж</p>
-                    <p className="font-medium">{formatAmount(client.monthly_payment)}</p>
+                    {isEditingClient ? (
+                      <Input
+                        type="number"
+                        value={editedClient.monthly_payment || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, monthly_payment: parseFloat(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="font-medium">{formatAmount(client.monthly_payment)}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Период рассрочки</p>
-                    <p className="font-medium">{client.installment_period} мес.</p>
+                    {isEditingClient ? (
+                      <Input
+                        type="number"
+                        value={editedClient.installment_period || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, installment_period: parseInt(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="font-medium">{client.installment_period} мес.</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">День платежа</p>
-                    <p className="font-medium">{client.payment_day} число</p>
+                    {isEditingClient ? (
+                      <Input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={editedClient.payment_day || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, payment_day: parseInt(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="font-medium">{client.payment_day} число</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Депозит оплачен</p>
@@ -263,7 +382,15 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Цель депозита</p>
-                    <p className="font-medium">{formatAmount(client.deposit_target || 0)}</p>
+                    {isEditingClient ? (
+                      <Input
+                        type="number"
+                        value={editedClient.deposit_target || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, deposit_target: parseFloat(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="font-medium">{formatAmount(client.deposit_target || 0)}</p>
+                    )}
                   </div>
                 </div>
 
