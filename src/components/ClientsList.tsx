@@ -24,6 +24,10 @@ interface Client {
   employee_id: string;
   created_at: string;
   updated_at: string;
+  nextPayment?: {
+    due_date: string;
+    amount: number;
+  };
 }
 
 interface ClientsListProps {
@@ -47,7 +51,28 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setClients(data || []);
+
+      // Получаем ближайшие платежи для каждого клиента
+      const clientsWithPayments = await Promise.all((data || []).map(async (client) => {
+        const { data: payments } = await supabase
+          .from('payments')
+          .select('due_date, custom_amount, original_amount')
+          .eq('client_id', client.id)
+          .eq('is_completed', false)
+          .gte('due_date', new Date().toISOString().split('T')[0])
+          .order('due_date', { ascending: true })
+          .limit(1);
+
+        return {
+          ...client,
+          nextPayment: payments && payments.length > 0 ? {
+            due_date: payments[0].due_date,
+            amount: payments[0].custom_amount || payments[0].original_amount
+          } : undefined
+        };
+      }));
+
+      setClients(clientsWithPayments);
 
       // Получаем профили сотрудников для отображения имен
       if (data && data.length > 0) {
@@ -224,7 +249,7 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
                   )}
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <p className="font-medium text-muted-foreground">Сумма договора</p>
                       <p className="text-lg font-semibold text-primary">
@@ -261,6 +286,22 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
                         {client.payment_day} число
                       </p>
                     </div>
+                    {client.nextPayment && (
+                      <>
+                        <div>
+                          <p className="font-medium text-muted-foreground">Дата след. платежа</p>
+                          <p className="text-lg font-semibold text-orange-600">
+                            {new Date(client.nextPayment.due_date).toLocaleDateString('ru-RU')}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground">Сумма след. платежа</p>
+                          <p className="text-lg font-semibold text-orange-600">
+                            {formatAmount(client.nextPayment.amount)}
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
