@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Trash2, UserX } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Eye, Trash2, UserX, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientDetailsDialog } from "./ClientDetailsDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +50,7 @@ export const EmployeeClientsDialog = ({
   const [transferToEmployeeId, setTransferToEmployeeId] = useState<string>("");
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [clientToTransfer, setClientToTransfer] = useState<Client | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   const fetchEmployees = async () => {
@@ -245,6 +247,10 @@ export const EmployeeClientsDialog = ({
     setClientDetailsOpen(true);
   };
 
+  const filteredClients = clients.filter(client =>
+    client.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -268,8 +274,19 @@ export const EmployeeClientsDialog = ({
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Поиск по имени клиента..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
             <div className="text-sm text-muted-foreground">
-              Найдено клиентов: {clients.length}
+              Найдено клиентов: {filteredClients.length} из {clients.length}
             </div>
             
             <Table>
@@ -285,7 +302,7 @@ export const EmployeeClientsDialog = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clients.map((client) => {
+                {filteredClients.map((client) => {
                   const status = getPaymentStatus(client.total_paid || 0, client.contract_amount);
                   return (
                     <TableRow key={client.id}>
