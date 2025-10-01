@@ -51,32 +51,10 @@ export const PaymentSchedule = ({
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editDate, setEditDate] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const [receiptsCount, setReceiptsCount] = useState<number>(0);
+
   useEffect(() => {
     initializePayments();
-    fetchReceiptsCount();
   }, [clientId, user]);
-
-  const fetchReceiptsCount = async () => {
-    if (!user || !clientId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('payment_receipts')
-        .select('id')
-        .eq('client_id', clientId)
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Ошибка загрузки количества чеков:', error);
-        return;
-      }
-
-      setReceiptsCount(data?.length || 0);
-    } catch (error) {
-      console.error('Ошибка при подсчете чеков:', error);
-    }
-  };
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
@@ -183,16 +161,6 @@ export const PaymentSchedule = ({
     if (!payment) return;
 
     const newCompletedStatus = !payment.is_completed;
-    
-    // Проверяем, что для завершения платежа есть соответствующий чек
-    if (newCompletedStatus) {
-      const completedPaymentsCount = payments.filter(p => p.is_completed).length;
-      if (completedPaymentsCount >= receiptsCount) {
-        toast.error('Необходимо загрузить чек перед отметкой платежа как выполненного');
-        return;
-      }
-    }
-
     const paymentAmount = payment.custom_amount ?? payment.original_amount;
 
     // Обновляем статус платежа
@@ -356,11 +324,7 @@ export const PaymentSchedule = ({
   };
 
   const canCompletePayment = (payment: Payment) => {
-    if (payment.is_completed) return true; // Уже выполненный платеж можно отменить
-    
-    // Для завершения платежа проверяем, что загружено достаточно чеков
-    const completedPaymentsCount = payments.filter(p => p.is_completed).length;
-    return completedPaymentsCount < receiptsCount;
+    return true; // Разрешаем отмечать платежи без обязательной загрузки чеков
   };
 
   if (loading) {
@@ -400,16 +364,13 @@ export const PaymentSchedule = ({
                 }`}
               >
                  <div className="flex items-center gap-3">
-                   <div 
+                     <div 
                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                        payment.is_completed 
                          ? 'bg-primary border-primary text-primary-foreground cursor-pointer' 
-                         : canCompletePayment(payment) 
-                           ? 'border-muted-foreground hover:border-primary cursor-pointer'
-                           : 'border-muted-foreground opacity-50 cursor-not-allowed'
+                         : 'border-muted-foreground hover:border-primary cursor-pointer'
                      }`}
-                     onClick={() => canCompletePayment(payment) && togglePayment(payment.id)}
-                     title={!canCompletePayment(payment) && !payment.is_completed ? 'Сначала загрузите чек' : ''}
+                     onClick={() => togglePayment(payment.id)}
                    >
                      {payment.is_completed && <Check className="w-3 h-3" />}
                    </div>
