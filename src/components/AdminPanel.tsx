@@ -105,7 +105,8 @@ export const AdminPanel = () => {
         .from('payments')
         .select('original_amount, custom_amount, is_completed')
         .gte('due_date', startDate.toISOString().split('T')[0])
-        .lte('due_date', endDate.toISOString().split('T')[0]);
+        .lte('due_date', endDate.toISOString().split('T')[0])
+        .neq('payment_number', 0);
 
       if (paymentsError) throw paymentsError;
 
