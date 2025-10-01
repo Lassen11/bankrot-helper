@@ -12,6 +12,7 @@ import { EmployeeClientsDialog } from "./EmployeeClientsDialog";
 import { ClientForm } from "./ClientForm";
 import { ImportExportPanel } from "./ImportExportPanel";
 import { PaymentsCalendar } from "./PaymentsCalendar";
+import { AgentsManagement } from "./AgentsManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -395,9 +396,10 @@ export const AdminPanel = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="employees">Сотрудники</TabsTrigger>
+          <TabsTrigger value="agents">Агенты</TabsTrigger>
           <TabsTrigger value="clients">Добавить клиента</TabsTrigger>
           <TabsTrigger value="import-export">Импорт/Экспорт</TabsTrigger>
           <TabsTrigger value="management">Управление</TabsTrigger>
@@ -720,6 +722,10 @@ export const AdminPanel = () => {
             fetchAdminMetrics();
             fetchEmployeeStats();
           }} />
+        </TabsContent>
+
+        <TabsContent value="agents" className="space-y-6">
+          <AgentsManagement isAdmin={true} />
         </TabsContent>
 
         <TabsContent value="import-export" className="space-y-6">

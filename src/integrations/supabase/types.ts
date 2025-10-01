@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      agents: {
+        Row: {
+          agent_full_name: string
+          agent_phone: string
+          client_category: string | null
+          created_at: string
+          employee_id: string
+          first_payment_amount: number | null
+          first_payment_date: string | null
+          id: string
+          lead_link: string | null
+          mop_name: string | null
+          payment_month_1: number | null
+          payment_month_2: number | null
+          payment_month_3: number | null
+          payout_1: number | null
+          payout_2: number | null
+          payout_3: number | null
+          recommendation_name: string | null
+          remaining_payment: number | null
+          reward_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent_full_name: string
+          agent_phone: string
+          client_category?: string | null
+          created_at?: string
+          employee_id: string
+          first_payment_amount?: number | null
+          first_payment_date?: string | null
+          id?: string
+          lead_link?: string | null
+          mop_name?: string | null
+          payment_month_1?: number | null
+          payment_month_2?: number | null
+          payment_month_3?: number | null
+          payout_1?: number | null
+          payout_2?: number | null
+          payout_3?: number | null
+          recommendation_name?: string | null
+          remaining_payment?: number | null
+          reward_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent_full_name?: string
+          agent_phone?: string
+          client_category?: string | null
+          created_at?: string
+          employee_id?: string
+          first_payment_amount?: number | null
+          first_payment_date?: string | null
+          id?: string
+          lead_link?: string | null
+          mop_name?: string | null
+          payment_month_1?: number | null
+          payment_month_2?: number | null
+          payment_month_3?: number | null
+          payout_1?: number | null
+          payout_2?: number | null
+          payout_3?: number | null
+          recommendation_name?: string | null
+          remaining_payment?: number | null
+          reward_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           contract_amount: number
@@ -68,6 +137,39 @@ export type Database = {
           total_paid?: number | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      employee_bonuses: {
+        Row: {
+          agents_count: number | null
+          created_at: string
+          employee_id: string
+          id: string
+          month: number
+          reviews_count: number | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          agents_count?: number | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          month: number
+          reviews_count?: number | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          agents_count?: number | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          month?: number
+          reviews_count?: number | null
+          updated_at?: string
+          year?: number
         }
         Relationships: []
       }

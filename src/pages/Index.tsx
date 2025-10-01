@@ -4,6 +4,8 @@ import { ClientForm } from "@/components/ClientForm";
 import { ClientsList } from "@/components/ClientsList";
 import { AdminPanel } from "@/components/AdminPanel";
 import { PaymentsCalendar } from "@/components/PaymentsCalendar";
+import { EmployeeBonus } from "@/components/EmployeeBonus";
+import { AgentsManagement } from "@/components/AgentsManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserPlus, TrendingUp, Calendar, DollarSign } from "lucide-react";
@@ -247,9 +249,11 @@ const Index = () => {
           </div>
 
           <Tabs defaultValue="clients" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="clients">Список клиентов</TabsTrigger>
               <TabsTrigger value="calendar">Календарь платежей</TabsTrigger>
+              <TabsTrigger value="bonus">Премия</TabsTrigger>
+              <TabsTrigger value="agents">Агенты</TabsTrigger>
               <TabsTrigger value="add-client">Добавить клиента</TabsTrigger>
             </TabsList>
             
@@ -259,6 +263,14 @@ const Index = () => {
             
             <TabsContent value="calendar" className="space-y-6">
               <PaymentsCalendar employeeId={user?.id} />
+            </TabsContent>
+
+            <TabsContent value="bonus" className="space-y-6">
+              <EmployeeBonus />
+            </TabsContent>
+
+            <TabsContent value="agents" className="space-y-6">
+              <AgentsManagement />
             </TabsContent>
             
             <TabsContent value="add-client" className="space-y-6">
