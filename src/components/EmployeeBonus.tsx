@@ -22,7 +22,8 @@ export const EmployeeBonus = () => {
   const [stats, setStats] = useState({ 
     completedClients: 0, 
     totalPayments: 0,
-    clientsTotal: 0 
+    clientsTotal: 0,
+    totalExpectedAmount: 0
   });
 
   const currentMonth = new Date().getMonth() + 1;
@@ -100,6 +101,7 @@ export const EmployeeBonus = () => {
           completedClients: completedPaymentsCount,
           totalPayments: totalCompletedAmount,
           clientsTotal: totalExpectedPayments,
+          totalExpectedAmount: totalExpectedAmount,
         });
       }
     } catch (error) {
@@ -174,9 +176,8 @@ export const EmployeeBonus = () => {
   const paymentsCountPercent = stats.clientsTotal > 0 
     ? ((stats.completedClients / stats.clientsTotal) * 100).toFixed(1)
     : '0.0';
-  const expectedAmount = stats.clientsTotal * 50000;
-  const paymentsAmountPercent = expectedAmount > 0 
-    ? Math.min((stats.totalPayments / expectedAmount) * 100, 100).toFixed(1)
+  const paymentsAmountPercent = stats.totalExpectedAmount > 0 
+    ? Math.min((stats.totalPayments / stats.totalExpectedAmount) * 100, 100).toFixed(1)
     : '0.0';
   const averagePercent = ((Number(paymentsCountPercent) + Number(paymentsAmountPercent)) / 2).toFixed(1);
 

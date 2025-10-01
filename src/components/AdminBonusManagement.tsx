@@ -16,6 +16,7 @@ interface EmployeeBonusData {
   completedClients: number;
   totalPayments: number;
   clientsTotal: number;
+  totalExpectedAmount: number;
 }
 
 export const AdminBonusManagement = () => {
@@ -82,6 +83,9 @@ export const AdminBonusManagement = () => {
         const totalCompletedAmount = completedPayments.reduce((sum, p) => 
           sum + Number(p.custom_amount || p.original_amount || 0), 0
         );
+        const totalExpectedAmount = allPaymentsData?.reduce((sum, p) => 
+          sum + Number(p.custom_amount || p.original_amount || 0), 0
+        ) || 0;
 
         bonusData.push({
           employee_id: role.user_id,
@@ -91,6 +95,7 @@ export const AdminBonusManagement = () => {
           completedClients: completedPaymentsCount,
           totalPayments: totalCompletedAmount,
           clientsTotal: totalExpectedPayments,
+          totalExpectedAmount: totalExpectedAmount,
         });
       }
 
@@ -135,9 +140,8 @@ export const AdminBonusManagement = () => {
     if (data.clientsTotal === 0) return 0;
 
     const paymentsCountPercent = (data.completedClients / data.clientsTotal) * 100;
-    const expectedAmount = data.clientsTotal * 50000;
-    const paymentsAmountPercent = expectedAmount > 0
-      ? Math.min((data.totalPayments / expectedAmount) * 100, 100)
+    const paymentsAmountPercent = data.totalExpectedAmount > 0
+      ? Math.min((data.totalPayments / data.totalExpectedAmount) * 100, 100)
       : 0;
     const averagePercent = (paymentsCountPercent + paymentsAmountPercent) / 2;
 
@@ -224,9 +228,8 @@ export const AdminBonusManagement = () => {
         const paymentsCountPercent = employee.clientsTotal > 0 
           ? ((employee.completedClients / employee.clientsTotal) * 100).toFixed(1)
           : '0.0';
-        const expectedAmount = employee.clientsTotal * 50000;
-        const paymentsAmountPercent = expectedAmount > 0 
-          ? Math.min((employee.totalPayments / expectedAmount) * 100, 100).toFixed(1)
+        const paymentsAmountPercent = employee.totalExpectedAmount > 0 
+          ? Math.min((employee.totalPayments / employee.totalExpectedAmount) * 100, 100).toFixed(1)
           : '0.0';
         const averagePercent = ((Number(paymentsCountPercent) + Number(paymentsAmountPercent)) / 2).toFixed(1);
 
