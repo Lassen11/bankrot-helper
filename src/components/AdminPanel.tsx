@@ -13,6 +13,7 @@ import { ClientForm } from "./ClientForm";
 import { ImportExportPanel } from "./ImportExportPanel";
 import { PaymentsCalendar } from "./PaymentsCalendar";
 import { AgentsManagement } from "./AgentsManagement";
+import { AdminBonusManagement } from "./AdminBonusManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -396,9 +397,10 @@ export const AdminPanel = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="employees">Сотрудники</TabsTrigger>
+          <TabsTrigger value="bonuses">Премии</TabsTrigger>
           <TabsTrigger value="agents">Агенты</TabsTrigger>
           <TabsTrigger value="clients">Добавить клиента</TabsTrigger>
           <TabsTrigger value="import-export">Импорт/Экспорт</TabsTrigger>
@@ -715,6 +717,10 @@ export const AdminPanel = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="bonuses" className="space-y-6">
+          <AdminBonusManagement />
         </TabsContent>
 
         <TabsContent value="clients" className="space-y-6">
