@@ -21,8 +21,10 @@ interface AdminMetrics {
   totalClients: number;
   totalContractAmount: number;
   activeCases: number;
-  paymentsCount: number;
-  paymentsSum: number;
+  totalPaymentsCount: number;
+  completedPaymentsCount: number;
+  totalPaymentsSum: number;
+  completedPaymentsSum: number;
   loading: boolean;
 }
 
@@ -46,8 +48,10 @@ export const AdminPanel = () => {
     totalClients: 0,
     totalContractAmount: 0,
     activeCases: 0,
-    paymentsCount: 0,
-    paymentsSum: 0,
+    totalPaymentsCount: 0,
+    completedPaymentsCount: 0,
+    totalPaymentsSum: 0,
+    completedPaymentsSum: 0,
     loading: true
   });
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
@@ -105,8 +109,15 @@ export const AdminPanel = () => {
 
       if (paymentsError) throw paymentsError;
 
-      const paymentsCount = payments?.length || 0;
-      const paymentsSum = payments?.reduce((sum, payment) => {
+      const totalPaymentsCount = payments?.length || 0;
+      const completedPaymentsCount = payments?.filter(p => p.is_completed).length || 0;
+      
+      const totalPaymentsSum = payments?.reduce((sum, payment) => {
+        const amount = payment.custom_amount || payment.original_amount || 0;
+        return sum + amount;
+      }, 0) || 0;
+      
+      const completedPaymentsSum = payments?.filter(p => p.is_completed).reduce((sum, payment) => {
         const amount = payment.custom_amount || payment.original_amount || 0;
         return sum + amount;
       }, 0) || 0;
@@ -116,8 +127,10 @@ export const AdminPanel = () => {
         totalClients,
         totalContractAmount,
         activeCases,
-        paymentsCount,
-        paymentsSum,
+        totalPaymentsCount,
+        completedPaymentsCount,
+        totalPaymentsSum,
+        completedPaymentsSum,
         loading: false
       });
     } catch (error) {
@@ -431,7 +444,7 @@ export const AdminPanel = () => {
                       Количество платежей
                     </p>
                     <p className="text-2xl font-bold text-purple-600">
-                      {metrics.loading ? '-' : metrics.paymentsCount}
+                      {metrics.loading ? '-' : `${metrics.totalPaymentsCount}/${metrics.completedPaymentsCount}`}
                     </p>
                   </div>
                 </div>
@@ -449,7 +462,7 @@ export const AdminPanel = () => {
                       Сумма платежей
                     </p>
                     <p className="text-2xl font-bold text-emerald-600">
-                      {metrics.loading ? '-' : formatAmount(metrics.paymentsSum)}
+                      {metrics.loading ? '-' : `${Math.round(metrics.totalPaymentsSum)}/${Math.round(metrics.completedPaymentsSum)} ₽`}
                     </p>
                   </div>
                 </div>
