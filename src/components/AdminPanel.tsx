@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,9 @@ import { PaymentsCalendar } from "./PaymentsCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { ru } from "date-fns/locale";
 
 interface AdminMetrics {
   totalUsers: number;
@@ -37,6 +40,16 @@ interface EmployeeStats {
   active_cases: number;
 }
 
+interface RecentPayment {
+  id: string;
+  client_name: string;
+  employee_name: string;
+  amount: number;
+  due_date: string;
+  is_completed: boolean;
+  completed_at: string | null;
+}
+
 export const AdminPanel = () => {
   const { user } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
@@ -56,6 +69,7 @@ export const AdminPanel = () => {
     loading: true
   });
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
+  const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -67,6 +81,7 @@ export const AdminPanel = () => {
     // Только если пользователь авторизован и является админом
     fetchAdminMetrics();
     fetchEmployeeStats();
+    fetchRecentPayments();
   }, [user, isAdmin, roleLoading, selectedMonth, selectedYear, selectedEmployee]);
 
   const fetchAdminMetrics = async () => {
@@ -297,6 +312,69 @@ export const AdminPanel = () => {
     }
   };
 
+  const fetchRecentPayments = async () => {
+    if (!user) return;
+
+    try {
+      // Получаем последние 10 платежей за выбранный период
+      const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
+      const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
+      
+      let paymentsQuery = supabase
+        .from('payments')
+        .select(`
+          id,
+          original_amount,
+          custom_amount,
+          due_date,
+          is_completed,
+          completed_at,
+          clients!inner(
+            full_name,
+            employee_id
+          )
+        `)
+        .gte('due_date', startDate.toISOString().split('T')[0])
+        .lte('due_date', endDate.toISOString().split('T')[0])
+        .neq('payment_number', 0)
+        .order('completed_at', { ascending: false, nullsFirst: false })
+        .order('due_date', { ascending: false })
+        .limit(10);
+
+      // Фильтруем по сотруднику если выбран
+      if (selectedEmployee !== 'all') {
+        paymentsQuery = paymentsQuery.eq('clients.employee_id', selectedEmployee);
+      }
+
+      const { data: payments, error: paymentsError } = await paymentsQuery;
+
+      if (paymentsError) throw paymentsError;
+
+      // Получаем имена сотрудников
+      const employeeIds = [...new Set(payments?.map((p: any) => p.clients?.employee_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', employeeIds);
+
+      const employeeMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+
+      const formattedPayments: RecentPayment[] = payments?.map((payment: any) => ({
+        id: payment.id,
+        client_name: payment.clients?.full_name || 'Не указан',
+        employee_name: employeeMap.get(payment.clients?.employee_id) || 'Не указан',
+        amount: payment.custom_amount || payment.original_amount || 0,
+        due_date: payment.due_date,
+        is_completed: payment.is_completed,
+        completed_at: payment.completed_at,
+      })) || [];
+
+      setRecentPayments(formattedPayments);
+    } catch (error) {
+      console.error('Ошибка при загрузке последних платежей:', error);
+    }
+  };
+
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -493,6 +571,60 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* История последних платежей */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                История последних платежей
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Клиент</TableHead>
+                    <TableHead>Сотрудник</TableHead>
+                    <TableHead>Сумма</TableHead>
+                    <TableHead>Дата платежа</TableHead>
+                    <TableHead>Статус</TableHead>
+                    <TableHead>Дата выполнения</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentPayments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        Нет платежей за выбранный период
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    recentPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-medium">{payment.client_name}</TableCell>
+                        <TableCell>{payment.employee_name}</TableCell>
+                        <TableCell>{formatAmount(payment.amount)}</TableCell>
+                        <TableCell>
+                          {format(new Date(payment.due_date), 'd MMMM yyyy', { locale: ru })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={payment.is_completed ? 'default' : 'secondary'}>
+                            {payment.is_completed ? 'Выполнен' : 'Ожидается'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {payment.completed_at 
+                            ? format(new Date(payment.completed_at), 'd MMMM yyyy', { locale: ru })
+                            : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
           {/* Календарь платежей */}
           <PaymentsCalendar />
