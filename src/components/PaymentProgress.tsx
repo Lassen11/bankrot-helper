@@ -1,17 +1,22 @@
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 
 interface PaymentProgressProps {
   totalPaid: number;
   contractAmount: number;
   depositPaid: number;
   depositTarget: number;
+  isEditing?: boolean;
+  onDepositTargetChange?: (value: number) => void;
 }
 
 export const PaymentProgress = ({ 
   totalPaid, 
   contractAmount, 
   depositPaid, 
-  depositTarget 
+  depositTarget,
+  isEditing = false,
+  onDepositTargetChange
 }: PaymentProgressProps) => {
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
@@ -40,13 +45,26 @@ export const PaymentProgress = ({
           value={depositProgress} 
           className="h-3"
         />
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">
-            Внесено: {formatAmount(depositPaid)}
-          </span>
-          <span className="text-muted-foreground">
-            Цель: {formatAmount(depositTarget)}
-          </span>
+        <div className="flex justify-between text-sm gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Внесено:</span>
+            <span className="text-muted-foreground">{formatAmount(depositPaid)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Цель:</span>
+            {isEditing && onDepositTargetChange ? (
+              <Input
+                type="number"
+                value={depositTarget}
+                onChange={(e) => onDepositTargetChange(parseFloat(e.target.value) || 0)}
+                className="h-6 w-24 text-sm px-2"
+                min="0"
+                step="1000"
+              />
+            ) : (
+              <span className="text-muted-foreground">{formatAmount(depositTarget)}</span>
+            )}
+          </div>
         </div>
       </div>
 

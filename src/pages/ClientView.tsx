@@ -36,6 +36,7 @@ export default function ClientView() {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     deposit_paid: 0,
+    deposit_target: 50000,
   });
   const [remainingPayments, setRemainingPayments] = useState(0);
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
@@ -78,6 +79,7 @@ export default function ClientView() {
       setClient(data);
       setEditData({
         deposit_paid: data.deposit_paid || 0,
+        deposit_target: data.deposit_target || 50000,
       });
       
       // Рассчитываем количество оставшихся месяцев на основе остатка к оплате
@@ -113,6 +115,7 @@ export default function ClientView() {
         .from('clients')
         .update({
           deposit_paid: editData.deposit_paid,
+          deposit_target: editData.deposit_target,
           remaining_amount: newRemainingAmount,
         })
         .eq('id', client.id);
@@ -223,7 +226,9 @@ export default function ClientView() {
                 totalPaid={client.total_paid || 0}
                 contractAmount={client.contract_amount}
                 depositPaid={client.deposit_paid || 0}
-                depositTarget={client.deposit_target || 50000}
+                depositTarget={isEditing ? editData.deposit_target : (client.deposit_target || 50000)}
+                isEditing={isEditing}
+                onDepositTargetChange={(value) => setEditData(prev => ({ ...prev, deposit_target: value }))}
               />
             </CardContent>
           </Card>
@@ -312,6 +317,7 @@ export default function ClientView() {
                         setIsEditing(false);
                         setEditData({
                           deposit_paid: client.deposit_paid || 0,
+                          deposit_target: client.deposit_target || 50000,
                         });
                       }} 
                       variant="outline" 
