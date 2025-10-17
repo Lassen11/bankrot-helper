@@ -105,9 +105,7 @@ const Index = () => {
         let completedPaymentsSum = 0;
 
         allPayments?.forEach(payment => {
-          if (payment.is_completed && 
-              payment.due_date >= startDate.toISOString().split('T')[0] && 
-              payment.due_date <= endDate.toISOString().split('T')[0]) {
+          if (payment.is_completed) {
             clientsWithCompletedPayments.add(payment.client_id);
             const amount = payment.custom_amount ?? payment.original_amount;
             completedPaymentsSum += amount;
