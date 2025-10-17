@@ -121,32 +121,52 @@ export const AdminPanel = () => {
       const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
       const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
       
-      let paymentsQuery = supabase
+      // Плановые платежи = все незавершенные платежи со сроком <= конец месяца,
+      // исключая клиентов созданных в выбранном месяце
+      let plannedPaymentsQuery = supabase
         .from('payments')
-        .select('original_amount, custom_amount, is_completed, clients!inner(employee_id, created_at)')
-        .gte('due_date', startDate.toISOString().split('T')[0])
+        .select('original_amount, custom_amount, clients!inner(employee_id, created_at)')
+        .eq('is_completed', false)
         .lte('due_date', endDate.toISOString().split('T')[0])
         .lt('clients.created_at', startDate.toISOString())
         .neq('payment_number', 0);
 
       // Фильтруем по сотруднику если выбран
       if (selectedEmployee !== 'all') {
-        paymentsQuery = paymentsQuery.eq('clients.employee_id', selectedEmployee);
+        plannedPaymentsQuery = plannedPaymentsQuery.eq('clients.employee_id', selectedEmployee);
       }
 
-      const { data: payments, error: paymentsError } = await paymentsQuery;
+      const { data: plannedPayments, error: plannedError } = await plannedPaymentsQuery;
 
-      if (paymentsError) throw paymentsError;
+      if (plannedError) throw plannedError;
 
-      const totalPaymentsCount = payments?.length || 0;
-      const completedPaymentsCount = payments?.filter(p => p.is_completed).length || 0;
-      
-      const totalPaymentsSum = payments?.reduce((sum, payment) => {
+      const totalPaymentsCount = plannedPayments?.length || 0;
+      const totalPaymentsSum = plannedPayments?.reduce((sum, payment) => {
         const amount = payment.custom_amount || payment.original_amount || 0;
         return sum + amount;
       }, 0) || 0;
-      
-      const completedPaymentsSum = payments?.filter(p => p.is_completed).reduce((sum, payment) => {
+
+      // Завершенные платежи = все завершенные платежи со сроком <= конец месяца,
+      // исключая клиентов созданных в выбранном месяце
+      let completedPaymentsQuery = supabase
+        .from('payments')
+        .select('original_amount, custom_amount, clients!inner(employee_id, created_at)')
+        .eq('is_completed', true)
+        .lte('due_date', endDate.toISOString().split('T')[0])
+        .lt('clients.created_at', startDate.toISOString())
+        .neq('payment_number', 0);
+
+      // Фильтруем по сотруднику если выбран
+      if (selectedEmployee !== 'all') {
+        completedPaymentsQuery = completedPaymentsQuery.eq('clients.employee_id', selectedEmployee);
+      }
+
+      const { data: completedPayments, error: completedError } = await completedPaymentsQuery;
+
+      if (completedError) throw completedError;
+
+      const completedPaymentsCount = completedPayments?.length || 0;
+      const completedPaymentsSum = completedPayments?.reduce((sum, payment) => {
         const amount = payment.custom_amount || payment.original_amount || 0;
         return sum + amount;
       }, 0) || 0;

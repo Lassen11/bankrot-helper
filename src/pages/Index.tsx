@@ -71,12 +71,13 @@ const Index = () => {
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
         // Плановые платежи = все НЕЗАВЕРШЕННЫЕ платежи со сроком <= конец текущего месяца
-        // (включая просроченные с прошлых месяцев)
+        // (включая просроченные с прошлых месяцев), исключая клиентов созданных в текущем месяце
         let plannedPaymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, client_id, clients!inner(employee_id)')
+          .select('original_amount, custom_amount, client_id, clients!inner(employee_id, created_at)')
           .eq('is_completed', false)
           .lte('due_date', endDate.toISOString().split('T')[0])
+          .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
         if (!isAdmin) {
@@ -95,13 +96,14 @@ const Index = () => {
           totalPaymentsSum += amount;
         });
 
-        // Завершенные платежи за текущий месяц для подсчета фактической суммы
+        // Завершенные платежи = все завершенные платежи со сроком <= конец текущего месяца,
+        // исключая клиентов созданных в текущем месяце
         let completedPaymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, client_id, clients!inner(employee_id)')
+          .select('original_amount, custom_amount, client_id, clients!inner(employee_id, created_at)')
           .eq('is_completed', true)
-          .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
+          .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
         if (!isAdmin) {
