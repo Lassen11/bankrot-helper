@@ -70,57 +70,51 @@ const Index = () => {
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        // Плановые платежи = все НЕЗАВЕРШЕННЫЕ платежи со сроком <= конец текущего месяца
-        // (включая просроченные с прошлых месяцев), исключая клиентов созданных в текущем месяце
-        let plannedPaymentsQuery = supabase
+        // Получаем всех клиентов с платежами до конца месяца (исключая новых клиентов)
+        let allPaymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, client_id, clients!inner(employee_id, created_at)')
-          .eq('is_completed', false)
+          .select('original_amount, custom_amount, client_id, is_completed, due_date, clients!inner(employee_id, created_at)')
           .lte('due_date', endDate.toISOString().split('T')[0])
           .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
         if (!isAdmin) {
-          plannedPaymentsQuery = plannedPaymentsQuery.eq('clients.employee_id', user.id);
+          allPaymentsQuery = allPaymentsQuery.eq('clients.employee_id', user.id);
         }
 
-        const { data: plannedPayments, error: plannedError } = await plannedPaymentsQuery;
+        const { data: allPayments, error: paymentsError } = await allPaymentsQuery;
 
-        if (plannedError) throw plannedError;
+        if (paymentsError) throw paymentsError;
 
-        let totalPaymentsCount = plannedPayments?.length || 0;
+        // Считаем уникальных клиентов с платежами
+        const uniqueClientsWithPayments = new Set<string>();
         let totalPaymentsSum = 0;
 
-        plannedPayments?.forEach(payment => {
-          const amount = payment.custom_amount ?? payment.original_amount;
-          totalPaymentsSum += amount;
+        allPayments?.forEach(payment => {
+          uniqueClientsWithPayments.add(payment.client_id);
+          if (!payment.is_completed) {
+            const amount = payment.custom_amount ?? payment.original_amount;
+            totalPaymentsSum += amount;
+          }
         });
 
-        // Завершенные платежи = все завершенные платежи со сроком <= конец текущего месяца,
-        // исключая клиентов созданных в текущем месяце
-        let completedPaymentsQuery = supabase
-          .from('payments')
-          .select('original_amount, custom_amount, client_id, clients!inner(employee_id, created_at)')
-          .eq('is_completed', true)
-          .lte('due_date', endDate.toISOString().split('T')[0])
-          .lt('clients.created_at', startDate.toISOString())
-          .neq('payment_number', 0);
+        const totalPaymentsCount = uniqueClientsWithPayments.size;
 
-        if (!isAdmin) {
-          completedPaymentsQuery = completedPaymentsQuery.eq('clients.employee_id', user.id);
-        }
-
-        const { data: completedPayments, error: completedError } = await completedPaymentsQuery;
-
-        if (completedError) throw completedError;
-
-        let completedPaymentsCount = completedPayments?.length || 0;
+        // Считаем клиентов которые завершили хотя бы один платеж в текущем месяце
+        const clientsWithCompletedPayments = new Set<string>();
         let completedPaymentsSum = 0;
 
-        completedPayments?.forEach(payment => {
-          const amount = payment.custom_amount ?? payment.original_amount;
-          completedPaymentsSum += amount;
+        allPayments?.forEach(payment => {
+          if (payment.is_completed && 
+              payment.due_date >= startDate.toISOString().split('T')[0] && 
+              payment.due_date <= endDate.toISOString().split('T')[0]) {
+            clientsWithCompletedPayments.add(payment.client_id);
+            const amount = payment.custom_amount ?? payment.original_amount;
+            completedPaymentsSum += amount;
+          }
         });
+
+        const completedPaymentsCount = clientsWithCompletedPayments.size;
 
         setMetrics({
           totalClients,

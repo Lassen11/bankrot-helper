@@ -121,55 +121,52 @@ export const AdminPanel = () => {
       const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
       const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
       
-      // Плановые платежи = все незавершенные платежи со сроком <= конец месяца,
-      // исключая клиентов созданных в выбранном месяце
-      let plannedPaymentsQuery = supabase
+      // Получаем все платежи до конца месяца (исключая новых клиентов)
+      let allPaymentsQuery = supabase
         .from('payments')
-        .select('original_amount, custom_amount, clients!inner(employee_id, created_at)')
-        .eq('is_completed', false)
+        .select('original_amount, custom_amount, client_id, is_completed, due_date, clients!inner(employee_id, created_at)')
         .lte('due_date', endDate.toISOString().split('T')[0])
         .lt('clients.created_at', startDate.toISOString())
         .neq('payment_number', 0);
 
       // Фильтруем по сотруднику если выбран
       if (selectedEmployee !== 'all') {
-        plannedPaymentsQuery = plannedPaymentsQuery.eq('clients.employee_id', selectedEmployee);
+        allPaymentsQuery = allPaymentsQuery.eq('clients.employee_id', selectedEmployee);
       }
 
-      const { data: plannedPayments, error: plannedError } = await plannedPaymentsQuery;
+      const { data: allPayments, error: paymentsError } = await allPaymentsQuery;
 
-      if (plannedError) throw plannedError;
+      if (paymentsError) throw paymentsError;
 
-      const totalPaymentsCount = plannedPayments?.length || 0;
-      const totalPaymentsSum = plannedPayments?.reduce((sum, payment) => {
-        const amount = payment.custom_amount || payment.original_amount || 0;
-        return sum + amount;
-      }, 0) || 0;
+      // Считаем уникальных клиентов с платежами
+      const uniqueClientsWithPayments = new Set<string>();
+      let totalPaymentsSum = 0;
 
-      // Завершенные платежи = все завершенные платежи со сроком <= конец месяца,
-      // исключая клиентов созданных в выбранном месяце
-      let completedPaymentsQuery = supabase
-        .from('payments')
-        .select('original_amount, custom_amount, clients!inner(employee_id, created_at)')
-        .eq('is_completed', true)
-        .lte('due_date', endDate.toISOString().split('T')[0])
-        .lt('clients.created_at', startDate.toISOString())
-        .neq('payment_number', 0);
+      allPayments?.forEach(payment => {
+        uniqueClientsWithPayments.add(payment.client_id);
+        if (!payment.is_completed) {
+          const amount = payment.custom_amount ?? payment.original_amount;
+          totalPaymentsSum += amount;
+        }
+      });
 
-      // Фильтруем по сотруднику если выбран
-      if (selectedEmployee !== 'all') {
-        completedPaymentsQuery = completedPaymentsQuery.eq('clients.employee_id', selectedEmployee);
-      }
+      const totalPaymentsCount = uniqueClientsWithPayments.size;
 
-      const { data: completedPayments, error: completedError } = await completedPaymentsQuery;
+      // Считаем клиентов которые завершили хотя бы один платеж в выбранном месяце
+      const clientsWithCompletedPayments = new Set<string>();
+      let completedPaymentsSum = 0;
 
-      if (completedError) throw completedError;
+      allPayments?.forEach(payment => {
+        if (payment.is_completed && 
+            payment.due_date >= startDate.toISOString().split('T')[0] && 
+            payment.due_date <= endDate.toISOString().split('T')[0]) {
+          clientsWithCompletedPayments.add(payment.client_id);
+          const amount = payment.custom_amount ?? payment.original_amount;
+          completedPaymentsSum += amount;
+        }
+      });
 
-      const completedPaymentsCount = completedPayments?.length || 0;
-      const completedPaymentsSum = completedPayments?.reduce((sum, payment) => {
-        const amount = payment.custom_amount || payment.original_amount || 0;
-        return sum + amount;
-      }, 0) || 0;
+      const completedPaymentsCount = clientsWithCompletedPayments.size;
 
       setMetrics({
         totalUsers: employeeCount,
