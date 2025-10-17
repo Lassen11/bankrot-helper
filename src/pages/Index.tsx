@@ -65,36 +65,43 @@ const Index = () => {
           return totalPaid < contractAmount; // Активные дела - где еще есть задолженность
         }).length;
 
-        // Получаем данные о клиентах с monthly_payment для расчета плановой суммы
+        // Получаем данные о платежах для расчета метрик
         const currentDate = new Date();
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        let clientsWithPaymentQuery = supabase
-          .from('clients')
-          .select('id, monthly_payment, created_at')
-          .lt('created_at', startDate.toISOString());
+        // Плановые платежи = все НЕЗАВЕРШЕННЫЕ платежи со сроком <= конец текущего месяца
+        // (включая просроченные с прошлых месяцев)
+        let plannedPaymentsQuery = supabase
+          .from('payments')
+          .select('original_amount, custom_amount, client_id, clients!inner(employee_id)')
+          .eq('is_completed', false)
+          .lte('due_date', endDate.toISOString().split('T')[0])
+          .neq('payment_number', 0);
 
         if (!isAdmin) {
-          clientsWithPaymentQuery = clientsWithPaymentQuery.eq('employee_id', user.id);
+          plannedPaymentsQuery = plannedPaymentsQuery.eq('clients.employee_id', user.id);
         }
 
-        const { data: clientsWithPayment, error: clientsError } = await clientsWithPaymentQuery;
+        const { data: plannedPayments, error: plannedError } = await plannedPaymentsQuery;
 
-        if (clientsError) throw clientsError;
+        if (plannedError) throw plannedError;
 
-        // Плановая сумма = сумма monthly_payment всех клиентов (кроме новых)
-        const totalPaymentsSum = clientsWithPayment?.reduce((sum, client) => sum + (client.monthly_payment || 0), 0) || 0;
-        const totalPaymentsCount = clientsWithPayment?.length || 0;
+        let totalPaymentsCount = plannedPayments?.length || 0;
+        let totalPaymentsSum = 0;
 
-        // Получаем завершенные платежи за текущий месяц для подсчета фактической суммы
+        plannedPayments?.forEach(payment => {
+          const amount = payment.custom_amount ?? payment.original_amount;
+          totalPaymentsSum += amount;
+        });
+
+        // Завершенные платежи за текущий месяц для подсчета фактической суммы
         let completedPaymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, client_id, clients!inner(created_at, employee_id)')
+          .select('original_amount, custom_amount, client_id, clients!inner(employee_id)')
           .eq('is_completed', true)
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
-          .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
         if (!isAdmin) {
