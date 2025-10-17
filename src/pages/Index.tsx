@@ -6,6 +6,7 @@ import { AdminPanel } from "@/components/AdminPanel";
 import { PaymentsCalendar } from "@/components/PaymentsCalendar";
 import { EmployeeBonus } from "@/components/EmployeeBonus";
 import { AgentsManagement } from "@/components/AgentsManagement";
+import { PaymentsClientsDialog } from "@/components/PaymentsClientsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserPlus, TrendingUp, Calendar, DollarSign } from "lucide-react";
@@ -15,6 +16,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 
 const Index = () => {
   const [refreshClients, setRefreshClients] = useState(false);
+  const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
   const { user } = useAuth();
   const { isAdmin, isEmployee, loading: roleLoading } = useUserRole();
   const [metrics, setMetrics] = useState({
@@ -229,7 +231,10 @@ const Index = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow" 
+              onClick={() => setPaymentsDialogOpen(true)}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-purple-500/10 rounded-full">
@@ -279,6 +284,13 @@ const Index = () => {
           </Tabs>
         </div>
       </main>
+
+      <PaymentsClientsDialog 
+        open={paymentsDialogOpen}
+        onOpenChange={setPaymentsDialogOpen}
+        userId={user?.id}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 };

@@ -37,8 +37,7 @@ export default function ClientView() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-    deposit_paid: 0,
-    deposit_target: 50000
+    deposit_paid: 0
   });
   const [remainingPayments, setRemainingPayments] = useState(0);
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
@@ -72,8 +71,7 @@ export default function ClientView() {
       }
       setClient(data);
       setEditData({
-        deposit_paid: data.deposit_paid || 0,
-        deposit_target: data.deposit_target || 50000
+        deposit_paid: data.deposit_paid || 0
       });
 
       // Рассчитываем количество оставшихся месяцев на основе остатка к оплате
@@ -101,7 +99,6 @@ export default function ClientView() {
         error
       } = await supabase.from('clients').update({
         deposit_paid: editData.deposit_paid,
-        deposit_target: editData.deposit_target,
         remaining_amount: newRemainingAmount
       }).eq('id', client.id);
       if (error) {
@@ -200,10 +197,12 @@ export default function ClientView() {
               <CardTitle>Прогресс платежей</CardTitle>
             </CardHeader>
             <CardContent>
-              <PaymentProgress totalPaid={client.total_paid || 0} contractAmount={client.contract_amount} depositPaid={client.deposit_paid || 0} depositTarget={isEditing ? editData.deposit_target : client.deposit_target || 50000} isEditing={isEditing} onDepositTargetChange={value => setEditData(prev => ({
-              ...prev,
-              deposit_target: value
-            }))} />
+              <PaymentProgress 
+                totalPaid={client.total_paid || 0} 
+                contractAmount={client.contract_amount} 
+                depositPaid={client.deposit_paid || 0} 
+                depositTarget={client.deposit_target || 70000} 
+              />
             </CardContent>
           </Card>
 
@@ -270,8 +269,7 @@ export default function ClientView() {
                      <Button onClick={() => {
                   setIsEditing(false);
                   setEditData({
-                    deposit_paid: client.deposit_paid || 0,
-                    deposit_target: client.deposit_target || 50000
+                    deposit_paid: client.deposit_paid || 0
                   });
                 }} variant="outline" size="sm">
                       <X className="h-4 w-4 mr-2" />
