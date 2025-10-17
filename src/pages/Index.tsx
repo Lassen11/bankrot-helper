@@ -72,7 +72,7 @@ const Index = () => {
 
         let paymentsQuery = supabase
           .from('payments')
-          .select('is_completed, client_id')
+          .select('is_completed, client_id, original_amount, custom_amount')
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
           .neq('payment_number', 0);
@@ -100,18 +100,20 @@ const Index = () => {
           }
         });
 
-        // Суммируем monthly_payment для каждого уникального клиента
+        // Суммируем monthly_payment для запланированной суммы (для уникальных клиентов)
         let totalPaymentsSum = 0;
-        let completedPaymentsSum = 0;
-
         uniqueClientsWithPayments.forEach(clientId => {
           const monthlyPayment = clientsMap.get(clientId) || 0;
           totalPaymentsSum += monthlyPayment;
         });
 
-        clientsWithCompletedPayments.forEach(clientId => {
-          const monthlyPayment = clientsMap.get(clientId) || 0;
-          completedPaymentsSum += monthlyPayment;
+        // Суммируем фактические платежи (custom_amount или original_amount) для оплаченных
+        let completedPaymentsSum = 0;
+        payments?.forEach(payment => {
+          if (payment.is_completed) {
+            const amount = payment.custom_amount ?? payment.original_amount;
+            completedPaymentsSum += amount;
+          }
         });
 
         const totalPaymentsCount = uniqueClientsWithPayments.size;
