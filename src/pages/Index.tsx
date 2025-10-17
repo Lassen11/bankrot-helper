@@ -44,9 +44,9 @@ const Index = () => {
         .from('clients')
         .select('contract_amount, total_paid, id');
       
-      // Если не админ, показываем только своих клиентов
+      // Если не админ, показываем только своих клиентов (по employee_id)
       if (!isAdmin) {
-        query = query.eq('user_id', user.id);
+        query = query.eq('employee_id', user.id);
       }
       
       const { data: clients, error } = await query;
@@ -72,15 +72,15 @@ const Index = () => {
 
         let paymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, is_completed, client_id, clients!inner(created_at)')
+          .select('original_amount, custom_amount, is_completed, client_id, clients!inner(created_at, employee_id)')
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
           .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
+        // Фильтруем по employee_id через join с clients
         if (!isAdmin) {
-          const clientIds = clients.map(c => c.id);
-          paymentsQuery = paymentsQuery.in('client_id', clientIds);
+          paymentsQuery = paymentsQuery.eq('clients.employee_id', user.id);
         }
 
         const { data: payments, error: paymentsError } = await paymentsQuery;
