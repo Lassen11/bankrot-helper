@@ -189,7 +189,8 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       monthly_payment: client.monthly_payment,
       installment_period: client.installment_period,
       payment_day: client.payment_day,
-      deposit_target: client.deposit_target
+      deposit_target: client.deposit_target,
+      created_at: client.created_at
     });
     setIsEditingClient(true);
   };
@@ -402,7 +403,33 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                       <Calendar className="h-4 w-4" />
                       Дата создания
                     </p>
-                    <p className="font-medium">{formatDateTime(client.created_at)}</p>
+                    {isEditingClient ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !editedClient.created_at && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {editedClient.created_at ? format(new Date(editedClient.created_at), "dd.MM.yyyy HH:mm") : <span>Выберите дату</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={editedClient.created_at ? new Date(editedClient.created_at) : undefined}
+                            onSelect={(date) => date && setEditedClient({ ...editedClient, created_at: date.toISOString() })}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <p className="font-medium">{formatDateTime(client.created_at)}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
