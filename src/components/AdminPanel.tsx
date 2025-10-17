@@ -102,10 +102,17 @@ export const AdminPanel = () => {
       // Подсчитываем только сотрудников (исключаем администраторов)
       const employeeCount = userRoles?.filter(ur => ur.role === 'employee').length || 0;
 
-      // Получаем всех клиентов
-      const { data: clients, error: clientsError } = await supabase
+      // Получаем всех клиентов или только клиентов выбранного сотрудника
+      let clientsQuery = supabase
         .from('clients')
-        .select('contract_amount, total_paid');
+        .select('contract_amount, total_paid, id');
+
+      // Фильтруем по сотруднику если выбран
+      if (selectedEmployee !== 'all') {
+        clientsQuery = clientsQuery.eq('user_id', selectedEmployee);
+      }
+
+      const { data: clients, error: clientsError } = await clientsQuery;
 
       if (clientsError) throw clientsError;
 
@@ -123,32 +130,36 @@ export const AdminPanel = () => {
       
       let paymentsQuery = supabase
         .from('payments')
-        .select('original_amount, custom_amount, is_completed, clients!inner(employee_id)')
+        .select('original_amount, custom_amount, is_completed, client_id')
         .gte('due_date', startDate.toISOString().split('T')[0])
         .lte('due_date', endDate.toISOString().split('T')[0])
         .neq('payment_number', 0);
 
-      // Фильтруем по сотруднику если выбран
-      if (selectedEmployee !== 'all') {
-        paymentsQuery = paymentsQuery.eq('clients.employee_id', selectedEmployee);
+      // Фильтруем по клиентам если выбран сотрудник
+      if (clients && clients.length > 0) {
+        const clientIds = clients.map(c => c.id);
+        paymentsQuery = paymentsQuery.in('client_id', clientIds);
       }
 
       const { data: payments, error: paymentsError } = await paymentsQuery;
 
       if (paymentsError) throw paymentsError;
 
-      const totalPaymentsCount = payments?.length || 0;
-      const completedPaymentsCount = payments?.filter(p => p.is_completed).length || 0;
-      
-      const totalPaymentsSum = payments?.reduce((sum, payment) => {
-        const amount = payment.custom_amount || payment.original_amount || 0;
-        return sum + amount;
-      }, 0) || 0;
-      
-      const completedPaymentsSum = payments?.filter(p => p.is_completed).reduce((sum, payment) => {
-        const amount = payment.custom_amount || payment.original_amount || 0;
-        return sum + amount;
-      }, 0) || 0;
+      let totalPaymentsCount = 0;
+      let completedPaymentsCount = 0;
+      let totalPaymentsSum = 0;
+      let completedPaymentsSum = 0;
+
+      payments?.forEach(payment => {
+        const amount = payment.custom_amount ?? payment.original_amount;
+        totalPaymentsCount++;
+        totalPaymentsSum += amount;
+
+        if (payment.is_completed) {
+          completedPaymentsCount++;
+          completedPaymentsSum += amount;
+        }
+      });
 
       setMetrics({
         totalUsers: employeeCount,
