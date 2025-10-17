@@ -42,7 +42,7 @@ const Index = () => {
     try {
       let query = supabase
         .from('clients')
-        .select('contract_amount, total_paid, id');
+        .select('contract_amount, total_paid, id, monthly_payment');
       
       // Если не админ, показываем только своих клиентов
       if (!isAdmin) {
@@ -72,7 +72,7 @@ const Index = () => {
 
         let paymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, is_completed, client_id')
+          .select('is_completed, client_id')
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
           .neq('payment_number', 0);
@@ -86,21 +86,36 @@ const Index = () => {
 
         if (paymentsError) throw paymentsError;
 
-        let totalPaymentsCount = 0;
-        let completedPaymentsCount = 0;
+        // Создаем Map клиентов для быстрого доступа к monthly_payment
+        const clientsMap = new Map(clients.map(c => [c.id, c.monthly_payment]));
+
+        // Подсчитываем уникальных клиентов с платежами
+        const uniqueClientsWithPayments = new Set<string>();
+        const clientsWithCompletedPayments = new Set<string>();
+
+        payments?.forEach(payment => {
+          uniqueClientsWithPayments.add(payment.client_id);
+          if (payment.is_completed) {
+            clientsWithCompletedPayments.add(payment.client_id);
+          }
+        });
+
+        // Суммируем monthly_payment для каждого уникального клиента
         let totalPaymentsSum = 0;
         let completedPaymentsSum = 0;
 
-        payments?.forEach(payment => {
-          const amount = payment.custom_amount ?? payment.original_amount;
-          totalPaymentsCount++;
-          totalPaymentsSum += amount;
-
-          if (payment.is_completed) {
-            completedPaymentsCount++;
-            completedPaymentsSum += amount;
-          }
+        uniqueClientsWithPayments.forEach(clientId => {
+          const monthlyPayment = clientsMap.get(clientId) || 0;
+          totalPaymentsSum += monthlyPayment;
         });
+
+        clientsWithCompletedPayments.forEach(clientId => {
+          const monthlyPayment = clientsMap.get(clientId) || 0;
+          completedPaymentsSum += monthlyPayment;
+        });
+
+        const totalPaymentsCount = uniqueClientsWithPayments.size;
+        const completedPaymentsCount = clientsWithCompletedPayments.size;
 
         setMetrics({
           totalClients,
