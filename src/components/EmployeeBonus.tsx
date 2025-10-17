@@ -77,13 +77,14 @@ export const EmployeeBonus = () => {
       const startDate = new Date(currentYear, currentMonth - 1, 1);
       const endDate = new Date(currentYear, currentMonth, 0);
 
-      // Получаем ВСЕ платежи за месяц (не только завершенные)
+      // Получаем ВСЕ платежи за месяц (не только завершенные), исключая платежи клиентов созданных в этом месяце
       const { data: allPaymentsData } = await supabase
         .from('payments')
-        .select('custom_amount, original_amount, is_completed')
+        .select('custom_amount, original_amount, is_completed, clients!inner(created_at)')
         .eq('user_id', user.id)
         .gte('due_date', startDate.toISOString().split('T')[0])
         .lte('due_date', endDate.toISOString().split('T')[0])
+        .lt('clients.created_at', startDate.toISOString())
         .neq('payment_number', 0);
 
       if (allPaymentsData) {

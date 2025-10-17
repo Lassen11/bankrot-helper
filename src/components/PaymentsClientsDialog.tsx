@@ -39,7 +39,7 @@ export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: P
       // Получаем клиентов
       let clientsQuery = supabase
         .from('clients')
-        .select('id, full_name, user_id');
+        .select('id, full_name, user_id, created_at');
 
       if (!isAdmin && userId) {
         clientsQuery = clientsQuery.eq('user_id', userId);
@@ -48,8 +48,14 @@ export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: P
       const { data: clientsData, error: clientsError } = await clientsQuery;
       if (clientsError) throw clientsError;
 
+      // Фильтруем клиентов - исключаем тех, кто создан в текущем месяце
+      const filteredClients = clientsData?.filter(client => {
+        const clientCreatedAt = new Date(client.created_at);
+        return clientCreatedAt < startDate;
+      }) || [];
+
       // Получаем платежи за текущий месяц
-      const clientIds = clientsData?.map(c => c.id) || [];
+      const clientIds = filteredClients.map(c => c.id) || [];
       
       let paymentsQuery = supabase
         .from('payments')
@@ -68,7 +74,7 @@ export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: P
       // Группируем платежи по клиентам
       const clientsMap = new Map<string, ClientPayment>();
 
-      clientsData?.forEach(client => {
+      filteredClients.forEach(client => {
         const clientPayments = paymentsData?.filter(p => p.client_id === client.id) || [];
         
         if (clientPayments.length > 0) {

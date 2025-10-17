@@ -72,9 +72,10 @@ const Index = () => {
 
         let paymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, is_completed, client_id')
+          .select('original_amount, custom_amount, is_completed, client_id, clients!inner(created_at)')
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
+          .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
         if (!isAdmin) {
