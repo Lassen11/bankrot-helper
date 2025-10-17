@@ -65,42 +65,52 @@ const Index = () => {
           return totalPaid < contractAmount; // Активные дела - где еще есть задолженность
         }).length;
 
-        // Получаем платежи за текущий месяц для клиентов сотрудника
+        // Получаем данные о клиентах с monthly_payment для расчета плановой суммы
         const currentDate = new Date();
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        let paymentsQuery = supabase
+        let clientsWithPaymentQuery = supabase
+          .from('clients')
+          .select('id, monthly_payment, created_at')
+          .lt('created_at', startDate.toISOString());
+
+        if (!isAdmin) {
+          clientsWithPaymentQuery = clientsWithPaymentQuery.eq('employee_id', user.id);
+        }
+
+        const { data: clientsWithPayment, error: clientsError } = await clientsWithPaymentQuery;
+
+        if (clientsError) throw clientsError;
+
+        // Плановая сумма = сумма monthly_payment всех клиентов (кроме новых)
+        const totalPaymentsSum = clientsWithPayment?.reduce((sum, client) => sum + (client.monthly_payment || 0), 0) || 0;
+        const totalPaymentsCount = clientsWithPayment?.length || 0;
+
+        // Получаем завершенные платежи за текущий месяц для подсчета фактической суммы
+        let completedPaymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, is_completed, client_id, clients!inner(created_at, employee_id)')
+          .select('original_amount, custom_amount, client_id, clients!inner(created_at, employee_id)')
+          .eq('is_completed', true)
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
           .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
-        // Фильтруем по employee_id через join с clients
         if (!isAdmin) {
-          paymentsQuery = paymentsQuery.eq('clients.employee_id', user.id);
+          completedPaymentsQuery = completedPaymentsQuery.eq('clients.employee_id', user.id);
         }
 
-        const { data: payments, error: paymentsError } = await paymentsQuery;
+        const { data: completedPayments, error: completedError } = await completedPaymentsQuery;
 
-        if (paymentsError) throw paymentsError;
+        if (completedError) throw completedError;
 
-        let totalPaymentsCount = 0;
-        let completedPaymentsCount = 0;
-        let totalPaymentsSum = 0;
+        let completedPaymentsCount = completedPayments?.length || 0;
         let completedPaymentsSum = 0;
 
-        payments?.forEach(payment => {
+        completedPayments?.forEach(payment => {
           const amount = payment.custom_amount ?? payment.original_amount;
-          totalPaymentsCount++;
-          totalPaymentsSum += amount;
-
-          if (payment.is_completed) {
-            completedPaymentsCount++;
-            completedPaymentsSum += amount;
-          }
+          completedPaymentsSum += amount;
         });
 
         setMetrics({
