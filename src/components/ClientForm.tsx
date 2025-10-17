@@ -4,14 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import React from "react";
 
 interface ClientFormProps {
@@ -38,7 +33,6 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     contractDate: new Date().toISOString().split('T')[0], // Today's date as default
     employeeId: ""
   });
-  const [createdAtDate, setCreatedAtDate] = useState<Date>(new Date());
 
   // Загружаем список сотрудников для админов
   React.useEffect(() => {
@@ -123,8 +117,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             payment_day: parseInt(formData.paymentDay),
             contract_date: formData.contractDate,
             user_id: user.id,
-            employee_id: employeeId,
-            created_at: createdAtDate.toISOString()
+            employee_id: employeeId
           }
         ]);
 
@@ -145,7 +138,6 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         contractDate: new Date().toISOString().split('T')[0],
         employeeId: ""
       });
-      setCreatedAtDate(new Date());
 
       onClientAdded();
     } catch (error: any) {
@@ -186,36 +178,6 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
               onChange={(e) => handleInputChange("contractDate", e.target.value)}
               required
             />
-          </div>
-
-          <div>
-            <Label>Дата создания клиента</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !createdAtDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {createdAtDate ? format(createdAtDate, "dd.MM.yyyy") : <span>Выберите дату</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={createdAtDate}
-                  onSelect={(date) => date && setCreatedAtDate(date)}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-            <p className="text-xs text-muted-foreground mt-1">
-              Дата, с которой клиент будет учитываться в статистике
-            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

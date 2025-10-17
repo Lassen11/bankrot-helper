@@ -44,9 +44,9 @@ const Index = () => {
         .from('clients')
         .select('contract_amount, total_paid, id');
       
-      // Если не админ, показываем только своих клиентов (по employee_id)
+      // Если не админ, показываем только своих клиентов
       if (!isAdmin) {
-        query = query.eq('employee_id', user.id);
+        query = query.eq('user_id', user.id);
       }
       
       const { data: clients, error } = await query;
@@ -65,59 +65,41 @@ const Index = () => {
           return totalPaid < contractAmount; // Активные дела - где еще есть задолженность
         }).length;
 
-        // Получаем данные о платежах для расчета метрик
+        // Получаем платежи за текущий месяц для клиентов сотрудника
         const currentDate = new Date();
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        // Плановые платежи = все НЕЗАВЕРШЕННЫЕ платежи со сроком <= конец текущего месяца
-        // (включая просроченные с прошлых месяцев)
-        let plannedPaymentsQuery = supabase
+        let paymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, client_id, clients!inner(employee_id)')
-          .eq('is_completed', false)
-          .lte('due_date', endDate.toISOString().split('T')[0])
-          .neq('payment_number', 0);
-
-        if (!isAdmin) {
-          plannedPaymentsQuery = plannedPaymentsQuery.eq('clients.employee_id', user.id);
-        }
-
-        const { data: plannedPayments, error: plannedError } = await plannedPaymentsQuery;
-
-        if (plannedError) throw plannedError;
-
-        let totalPaymentsCount = plannedPayments?.length || 0;
-        let totalPaymentsSum = 0;
-
-        plannedPayments?.forEach(payment => {
-          const amount = payment.custom_amount ?? payment.original_amount;
-          totalPaymentsSum += amount;
-        });
-
-        // Завершенные платежи за текущий месяц для подсчета фактической суммы
-        let completedPaymentsQuery = supabase
-          .from('payments')
-          .select('original_amount, custom_amount, client_id, clients!inner(employee_id)')
-          .eq('is_completed', true)
+          .select('original_amount, custom_amount, is_completed, client_id')
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
           .neq('payment_number', 0);
 
         if (!isAdmin) {
-          completedPaymentsQuery = completedPaymentsQuery.eq('clients.employee_id', user.id);
+          const clientIds = clients.map(c => c.id);
+          paymentsQuery = paymentsQuery.in('client_id', clientIds);
         }
 
-        const { data: completedPayments, error: completedError } = await completedPaymentsQuery;
+        const { data: payments, error: paymentsError } = await paymentsQuery;
 
-        if (completedError) throw completedError;
+        if (paymentsError) throw paymentsError;
 
-        let completedPaymentsCount = completedPayments?.length || 0;
+        let totalPaymentsCount = 0;
+        let completedPaymentsCount = 0;
+        let totalPaymentsSum = 0;
         let completedPaymentsSum = 0;
 
-        completedPayments?.forEach(payment => {
+        payments?.forEach(payment => {
           const amount = payment.custom_amount ?? payment.original_amount;
-          completedPaymentsSum += amount;
+          totalPaymentsCount++;
+          totalPaymentsSum += amount;
+
+          if (payment.is_completed) {
+            completedPaymentsCount++;
+            completedPaymentsSum += amount;
+          }
         });
 
         setMetrics({

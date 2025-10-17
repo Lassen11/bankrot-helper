@@ -123,10 +123,9 @@ export const AdminPanel = () => {
       
       let paymentsQuery = supabase
         .from('payments')
-        .select('original_amount, custom_amount, is_completed, clients!inner(employee_id, created_at)')
+        .select('original_amount, custom_amount, is_completed, clients!inner(employee_id)')
         .gte('due_date', startDate.toISOString().split('T')[0])
         .lte('due_date', endDate.toISOString().split('T')[0])
-        .lt('clients.created_at', startDate.toISOString())
         .neq('payment_number', 0);
 
       // Фильтруем по сотруднику если выбран

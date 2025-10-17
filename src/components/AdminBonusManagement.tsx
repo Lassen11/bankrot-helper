@@ -68,14 +68,13 @@ export const AdminBonusManagement = () => {
           .eq('year', parseInt(selectedYear))
           .maybeSingle();
 
-        // Получаем ВСЕ платежи за месяц (не только завершенные), исключая платежи клиентов созданных в этом месяце
+        // Получаем ВСЕ платежи за месяц (не только завершенные)
         const { data: allPaymentsData } = await supabase
           .from('payments')
-          .select('custom_amount, original_amount, is_completed, clients!inner(created_at)')
+          .select('custom_amount, original_amount, is_completed')
           .eq('user_id', role.user_id)
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
-          .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
         const completedPayments = allPaymentsData?.filter(p => p.is_completed) || [];
