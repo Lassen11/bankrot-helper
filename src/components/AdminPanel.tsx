@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { UserManagement } from "./UserManagement";
 import { EmployeeClientsDialog } from "./EmployeeClientsDialog";
+import { PaymentsClientsDialog } from "./PaymentsClientsDialog";
 import { ClientForm } from "./ClientForm";
 import { ImportExportPanel } from "./ImportExportPanel";
 import { PaymentsCalendar } from "./PaymentsCalendar";
@@ -59,6 +60,7 @@ export const AdminPanel = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(currentDate.getFullYear().toString());
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
+  const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalUsers: 0,
     totalClients: 0,
@@ -558,7 +560,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow" 
+              onClick={() => setPaymentsDialogOpen(true)}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-emerald-500/10 rounded-full">
@@ -745,6 +750,13 @@ export const AdminPanel = () => {
           }} />
         </TabsContent>
       </Tabs>
+
+      <PaymentsClientsDialog 
+        open={paymentsDialogOpen}
+        onOpenChange={setPaymentsDialogOpen}
+        userId={selectedEmployee !== 'all' ? selectedEmployee : undefined}
+        isAdmin={true}
+      />
     </div>
   );
 };
