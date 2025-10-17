@@ -70,49 +70,55 @@ const Index = () => {
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        // Получаем всех клиентов с платежами до конца месяца (исключая новых клиентов)
-        let allPaymentsQuery = supabase
+        // Плановые платежи = все НЕЗАВЕРШЕННЫЕ платежи со сроком <= конец текущего месяца
+        // (включая просроченные с прошлых месяцев)
+        let plannedPaymentsQuery = supabase
           .from('payments')
-          .select('original_amount, custom_amount, client_id, is_completed, due_date, clients!inner(employee_id, created_at)')
+          .select('original_amount, custom_amount, client_id, clients!inner(employee_id)')
+          .eq('is_completed', false)
           .lte('due_date', endDate.toISOString().split('T')[0])
-          .lt('clients.created_at', startDate.toISOString())
           .neq('payment_number', 0);
 
         if (!isAdmin) {
-          allPaymentsQuery = allPaymentsQuery.eq('clients.employee_id', user.id);
+          plannedPaymentsQuery = plannedPaymentsQuery.eq('clients.employee_id', user.id);
         }
 
-        const { data: allPayments, error: paymentsError } = await allPaymentsQuery;
+        const { data: plannedPayments, error: plannedError } = await plannedPaymentsQuery;
 
-        if (paymentsError) throw paymentsError;
+        if (plannedError) throw plannedError;
 
-        // Считаем уникальных клиентов с платежами
-        const uniqueClientsWithPayments = new Set<string>();
+        let totalPaymentsCount = plannedPayments?.length || 0;
         let totalPaymentsSum = 0;
 
-        allPayments?.forEach(payment => {
-          uniqueClientsWithPayments.add(payment.client_id);
-          if (!payment.is_completed) {
-            const amount = payment.custom_amount ?? payment.original_amount;
-            totalPaymentsSum += amount;
-          }
+        plannedPayments?.forEach(payment => {
+          const amount = payment.custom_amount ?? payment.original_amount;
+          totalPaymentsSum += amount;
         });
 
-        const totalPaymentsCount = uniqueClientsWithPayments.size;
+        // Завершенные платежи за текущий месяц для подсчета фактической суммы
+        let completedPaymentsQuery = supabase
+          .from('payments')
+          .select('original_amount, custom_amount, client_id, clients!inner(employee_id)')
+          .eq('is_completed', true)
+          .gte('due_date', startDate.toISOString().split('T')[0])
+          .lte('due_date', endDate.toISOString().split('T')[0])
+          .neq('payment_number', 0);
 
-        // Считаем клиентов которые завершили хотя бы один платеж в текущем месяце
-        const clientsWithCompletedPayments = new Set<string>();
+        if (!isAdmin) {
+          completedPaymentsQuery = completedPaymentsQuery.eq('clients.employee_id', user.id);
+        }
+
+        const { data: completedPayments, error: completedError } = await completedPaymentsQuery;
+
+        if (completedError) throw completedError;
+
+        let completedPaymentsCount = completedPayments?.length || 0;
         let completedPaymentsSum = 0;
 
-        allPayments?.forEach(payment => {
-          if (payment.is_completed) {
-            clientsWithCompletedPayments.add(payment.client_id);
-            const amount = payment.custom_amount ?? payment.original_amount;
-            completedPaymentsSum += amount;
-          }
+        completedPayments?.forEach(payment => {
+          const amount = payment.custom_amount ?? payment.original_amount;
+          completedPaymentsSum += amount;
         });
-
-        const completedPaymentsCount = clientsWithCompletedPayments.size;
 
         setMetrics({
           totalClients,

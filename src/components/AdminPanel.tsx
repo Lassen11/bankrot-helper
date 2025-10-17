@@ -121,50 +121,35 @@ export const AdminPanel = () => {
       const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
       const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
       
-      // Получаем все платежи до конца месяца (исключая новых клиентов)
-      let allPaymentsQuery = supabase
+      let paymentsQuery = supabase
         .from('payments')
-        .select('original_amount, custom_amount, client_id, is_completed, due_date, clients!inner(employee_id, created_at)')
+        .select('original_amount, custom_amount, is_completed, clients!inner(employee_id, created_at)')
+        .gte('due_date', startDate.toISOString().split('T')[0])
         .lte('due_date', endDate.toISOString().split('T')[0])
         .lt('clients.created_at', startDate.toISOString())
         .neq('payment_number', 0);
 
       // Фильтруем по сотруднику если выбран
       if (selectedEmployee !== 'all') {
-        allPaymentsQuery = allPaymentsQuery.eq('clients.employee_id', selectedEmployee);
+        paymentsQuery = paymentsQuery.eq('clients.employee_id', selectedEmployee);
       }
 
-      const { data: allPayments, error: paymentsError } = await allPaymentsQuery;
+      const { data: payments, error: paymentsError } = await paymentsQuery;
 
       if (paymentsError) throw paymentsError;
 
-      // Считаем уникальных клиентов с платежами
-      const uniqueClientsWithPayments = new Set<string>();
-      let totalPaymentsSum = 0;
-
-      allPayments?.forEach(payment => {
-        uniqueClientsWithPayments.add(payment.client_id);
-        if (!payment.is_completed) {
-          const amount = payment.custom_amount ?? payment.original_amount;
-          totalPaymentsSum += amount;
-        }
-      });
-
-      const totalPaymentsCount = uniqueClientsWithPayments.size;
-
-      // Считаем клиентов которые завершили хотя бы один платеж до конца месяца
-      const clientsWithCompletedPayments = new Set<string>();
-      let completedPaymentsSum = 0;
-
-      allPayments?.forEach(payment => {
-        if (payment.is_completed) {
-          clientsWithCompletedPayments.add(payment.client_id);
-          const amount = payment.custom_amount ?? payment.original_amount;
-          completedPaymentsSum += amount;
-        }
-      });
-
-      const completedPaymentsCount = clientsWithCompletedPayments.size;
+      const totalPaymentsCount = payments?.length || 0;
+      const completedPaymentsCount = payments?.filter(p => p.is_completed).length || 0;
+      
+      const totalPaymentsSum = payments?.reduce((sum, payment) => {
+        const amount = payment.custom_amount || payment.original_amount || 0;
+        return sum + amount;
+      }, 0) || 0;
+      
+      const completedPaymentsSum = payments?.filter(p => p.is_completed).reduce((sum, payment) => {
+        const amount = payment.custom_amount || payment.original_amount || 0;
+        return sum + amount;
+      }, 0) || 0;
 
       setMetrics({
         totalUsers: employeeCount,
