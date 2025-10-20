@@ -25,6 +25,7 @@ interface Client {
   monthly_payment: number;
   installment_period: number;
   payment_day: number;
+  contract_date: string;
   employee_id: string;
   created_at: string;
   updated_at: string;
@@ -56,6 +57,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
   const [editDate, setEditDate] = useState<Date | undefined>(undefined);
   const [isEditingClient, setIsEditingClient] = useState(false);
   const [editedClient, setEditedClient] = useState<Partial<Client>>({});
+  const [editedContractDate, setEditedContractDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -189,8 +191,10 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       monthly_payment: client.monthly_payment,
       installment_period: client.installment_period,
       payment_day: client.payment_day,
-      deposit_target: client.deposit_target
+      deposit_target: client.deposit_target,
+      contract_date: client.contract_date
     });
+    setEditedContractDate(new Date(client.contract_date));
     setIsEditingClient(true);
   };
 
@@ -198,20 +202,38 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     if (!client || !clientId) return;
 
     try {
+      const contractDateChanged = editedContractDate && 
+        format(editedContractDate, 'yyyy-MM-dd') !== client.contract_date;
+
+      const updateData = {
+        ...editedClient,
+        contract_date: editedContractDate ? format(editedContractDate, 'yyyy-MM-dd') : client.contract_date
+      };
+
       const { error } = await supabase
         .from('clients')
-        .update(editedClient)
+        .update(updateData)
         .eq('id', clientId);
 
       if (error) throw error;
 
-      setClient({ ...client, ...editedClient });
+      // Если дата создания изменилась, пересоздаем график платежей
+      if (contractDateChanged) {
+        await regeneratePaymentSchedule();
+      }
+
+      setClient({ ...client, ...updateData });
       setIsEditingClient(false);
       
       toast({
         title: "Успешно",
-        description: "Данные клиента обновлены",
+        description: contractDateChanged 
+          ? "Данные клиента обновлены, график платежей пересоздан" 
+          : "Данные клиента обновлены",
       });
+
+      // Обновляем данные клиента
+      await fetchClientDetails();
     } catch (error) {
       console.error('Error updating client:', error);
       toast({
@@ -222,9 +244,87 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     }
   };
 
+  const regeneratePaymentSchedule = async () => {
+    if (!client || !clientId || !editedContractDate) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      // Удаляем все существующие платежи
+      const { error: deleteError } = await supabase
+        .from('payments')
+        .delete()
+        .eq('client_id', clientId);
+
+      if (deleteError) throw deleteError;
+
+      // Создаем новый график платежей
+      const paymentsToCreate = [];
+      const startDate = new Date(editedContractDate);
+      
+      // Первый платеж
+      paymentsToCreate.push({
+        client_id: clientId,
+        user_id: user.id,
+        payment_number: 0,
+        original_amount: editedClient.first_payment || client.first_payment,
+        due_date: startDate.toISOString().split('T')[0],
+        payment_type: 'first'
+      });
+
+      // Ежемесячные платежи
+      const period = editedClient.installment_period || client.installment_period;
+      const monthlyAmount = editedClient.monthly_payment || client.monthly_payment;
+      const payDay = editedClient.payment_day || client.payment_day;
+
+      for (let i = 1; i <= period; i++) {
+        const paymentDate = new Date(startDate);
+        paymentDate.setMonth(startDate.getMonth() + i);
+        paymentDate.setDate(payDay);
+        
+        if (paymentDate.getDate() !== payDay) {
+          paymentDate.setDate(0);
+        }
+        
+        paymentsToCreate.push({
+          client_id: clientId,
+          user_id: user.id,
+          payment_number: i,
+          original_amount: monthlyAmount,
+          due_date: paymentDate.toISOString().split('T')[0],
+          payment_type: 'monthly'
+        });
+      }
+
+      const { error: insertError } = await supabase
+        .from('payments')
+        .insert(paymentsToCreate);
+
+      if (insertError) throw insertError;
+
+      // Сбрасываем total_paid и deposit_paid
+      const { error: resetError } = await supabase
+        .from('clients')
+        .update({ 
+          total_paid: 0, 
+          deposit_paid: 0,
+          remaining_amount: editedClient.contract_amount || client.contract_amount
+        })
+        .eq('id', clientId);
+
+      if (resetError) throw resetError;
+
+    } catch (error) {
+      console.error('Error regenerating payment schedule:', error);
+      throw error;
+    }
+  };
+
   const cancelEditingClient = () => {
     setIsEditingClient(false);
     setEditedClient({});
+    setEditedContractDate(undefined);
   };
 
   if (!client && !loading) return null;
@@ -400,9 +500,35 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      Дата создания
+                      Дата договора
                     </p>
-                    <p className="font-medium">{formatDateTime(client.created_at)}</p>
+                    {isEditingClient ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "justify-start text-left font-normal",
+                              !editedContractDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {editedContractDate ? format(editedContractDate, 'dd.MM.yyyy') : "Выберите дату"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={editedContractDate}
+                            onSelect={setEditedContractDate}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <p className="font-medium">{formatDate(client.contract_date)}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
