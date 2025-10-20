@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, Edit, Save, X, CalendarIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +32,18 @@ interface Payment {
   due_date: string;
   is_completed: boolean;
   payment_type: string;
+  account: string | null;
 }
+
+const ACCOUNT_OPTIONS = [
+  "Зайнаб карта",
+  "Касса офис Диана",
+  "Мариана Карта - депозит",
+  "Карта Visa/Т-Банк (КИ)",
+  "Наличные",
+  "Сейф (КИ)",
+  "Расчетный счет"
+];
 
 export const PaymentSchedule = ({
   clientId,
@@ -50,6 +62,8 @@ export const PaymentSchedule = ({
   const [editAmount, setEditAmount] = useState<number>(0);
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editDate, setEditDate] = useState<Date | undefined>(undefined);
+  const [editingAccount, setEditingAccount] = useState<string | null>(null);
+  const [editAccount, setEditAccount] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -323,6 +337,39 @@ export const PaymentSchedule = ({
     setEditDate(undefined);
   };
 
+  const startEditingAccount = (paymentId: string, currentAccount: string | null) => {
+    setEditingAccount(paymentId);
+    setEditAccount(currentAccount || "");
+  };
+
+  const saveCustomAccount = async () => {
+    if (!editingAccount) return;
+
+    const { error } = await supabase
+      .from('payments')
+      .update({ account: editAccount || null })
+      .eq('id', editingAccount);
+
+    if (error) {
+      toast.error('Ошибка сохранения счета');
+      return;
+    }
+
+    const updatedPayments = payments.map(p => 
+      p.id === editingAccount 
+        ? { ...p, account: editAccount || null }
+        : p
+    );
+    setPayments(updatedPayments);
+    setEditingAccount(null);
+    toast.success('Счет обновлен');
+  };
+
+  const cancelEditingAccount = () => {
+    setEditingAccount(null);
+    setEditAccount("");
+  };
+
   const canCompletePayment = (payment: Payment) => {
     return true; // Разрешаем отмечать платежи без обязательной загрузки чеков
   };
@@ -428,40 +475,77 @@ export const PaymentSchedule = ({
                    </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  {isEditing ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        value={editAmount}
-                        onChange={(e) => setEditAmount(parseFloat(e.target.value) || 0)}
-                        className="w-24 h-8 text-sm"
-                        step="0.01"
-                        min="0"
-                      />
-                      <Button onClick={saveCustomAmount} size="sm" variant="ghost" className="h-8 w-8 p-0">
-                        <Save className="w-3 h-3" />
-                      </Button>
-                      <Button onClick={cancelEditing} size="sm" variant="ghost" className="h-8 w-8 p-0">
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className={`font-semibold ${payment.is_completed ? 'line-through' : ''}`}>
-                        {formatAmount(currentAmount)}
-                      </span>
-                      <Button 
-                        onClick={() => startEditing(payment.id, currentAmount)}
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                 <div className="flex items-center gap-2">
+                   {editingAccount === payment.id ? (
+                     <div className="flex items-center gap-2">
+                       <Select value={editAccount} onValueChange={setEditAccount}>
+                         <SelectTrigger className="w-40 h-8 text-xs">
+                           <SelectValue placeholder="Выберите счет" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {ACCOUNT_OPTIONS.map((account) => (
+                             <SelectItem key={account} value={account} className="text-xs">
+                               {account}
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                       <Button onClick={saveCustomAccount} size="sm" variant="ghost" className="h-8 w-8 p-0">
+                         <Save className="w-3 h-3" />
+                       </Button>
+                       <Button onClick={cancelEditingAccount} size="sm" variant="ghost" className="h-8 w-8 p-0">
+                         <X className="w-3 h-3" />
+                       </Button>
+                     </div>
+                   ) : (
+                     <div className="flex items-center gap-2 group/account">
+                       <span className={`text-xs text-muted-foreground min-w-[100px] ${payment.is_completed ? 'line-through' : ''}`}>
+                         {payment.account || 'Не указан'}
+                       </span>
+                       <Button 
+                         onClick={() => startEditingAccount(payment.id, payment.account)}
+                         size="sm" 
+                         variant="ghost" 
+                         className="h-6 w-6 p-0 opacity-0 group-hover/account:opacity-100 hover:opacity-100 transition-opacity"
+                       >
+                         <Edit className="w-3 h-3" />
+                       </Button>
+                     </div>
+                   )}
+                   
+                   {isEditing ? (
+                     <div className="flex items-center gap-2">
+                       <Input
+                         type="number"
+                         value={editAmount}
+                         onChange={(e) => setEditAmount(parseFloat(e.target.value) || 0)}
+                         className="w-24 h-8 text-sm"
+                         step="0.01"
+                         min="0"
+                       />
+                       <Button onClick={saveCustomAmount} size="sm" variant="ghost" className="h-8 w-8 p-0">
+                         <Save className="w-3 h-3" />
+                       </Button>
+                       <Button onClick={cancelEditing} size="sm" variant="ghost" className="h-8 w-8 p-0">
+                         <X className="w-3 h-3" />
+                       </Button>
+                     </div>
+                   ) : (
+                     <div className="flex items-center gap-2">
+                       <span className={`font-semibold ${payment.is_completed ? 'line-through' : ''}`}>
+                         {formatAmount(currentAmount)}
+                       </span>
+                       <Button 
+                         onClick={() => startEditing(payment.id, currentAmount)}
+                         size="sm" 
+                         variant="ghost" 
+                         className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
+                       >
+                         <Edit className="w-3 h-3" />
+                       </Button>
+                     </div>
+                   )}
+                 </div>
               </div>
             );
           })}

@@ -225,6 +225,7 @@ export type Database = {
       }
       payments: {
         Row: {
+          account: string | null
           client_id: string
           completed_at: string | null
           created_at: string
@@ -239,6 +240,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account?: string | null
           client_id: string
           completed_at?: string | null
           created_at?: string
@@ -253,6 +255,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account?: string | null
           client_id?: string
           completed_at?: string | null
           created_at?: string
