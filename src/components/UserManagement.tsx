@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserPlus, Settings, Trash2, AlertCircle } from "lucide-react";
+import { Users, UserPlus, Settings, Trash2, AlertCircle, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -33,10 +33,15 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<'admin' | 'employee'>('employee');
+  const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
+  const [editEmail, setEditEmail] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editPassword, setEditPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -242,13 +247,76 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
     }
   };
 
+  const handleEditUser = (userData: UserWithRole) => {
+    setEditingUser(userData);
+    setEditEmail(userData.email);
+    setEditName(userData.full_name);
+    setEditPassword('');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
+
+    if (!editEmail || !editName) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните обязательные поля (email и имя)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session?.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: editingUser.user_id,
+          email: editEmail,
+          full_name: editName,
+          ...(editPassword && { password: editPassword })
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка обновления пользователя');
+      }
+
+      toast({
+        title: "Успешно",
+        description: "Данные пользователя обновлены",
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      setEditEmail('');
+      setEditName('');
+      setEditPassword('');
+      fetchUsers();
+      onUserUpdate();
+
+    } catch (error: any) {
+      console.error('Ошибка при обновлении пользователя:', error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось обновить данные пользователя",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) {
       return;
     }
 
     try {
-      // Удаляем пользователя через Edge Function
       const { data: session } = await supabase.auth.getSession();
       const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
         method: 'DELETE',
@@ -463,6 +531,13 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
                         </SelectContent>
                       </Select>
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditUser(userData)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => handleDeleteUser(userData.user_id)}
@@ -477,6 +552,59 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
           </TableBody>
         </Table>
       </CardContent>
+      
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать пользователя</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="email@example.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-name">Полное имя</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Иван Иванов"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-password">Новый пароль (оставьте пустым, если не хотите менять)</Label>
+              <Input
+                id="edit-password"
+                type="password"
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                placeholder="Введите новый пароль"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingUser(null);
+                setEditEmail('');
+                setEditName('');
+                setEditPassword('');
+              }}>
+                Отмена
+              </Button>
+              <Button onClick={handleUpdateUser}>
+                Сохранить
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

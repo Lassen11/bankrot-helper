@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
 serve(async (req) => {
@@ -210,6 +210,62 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ user: { id: userId, email } }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+
+      case 'PUT':
+        // Update user
+        const { userId: userIdToUpdate, email: newEmail, password: newPassword, full_name: newFullName } = await req.json()
+        
+        if (!userIdToUpdate) {
+          return new Response(
+            JSON.stringify({ error: 'User ID is required' }),
+            { 
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          )
+        }
+
+        const updateData: any = {}
+        
+        if (newEmail) {
+          updateData.email = newEmail
+        }
+        
+        if (newPassword) {
+          updateData.password = newPassword
+        }
+        
+        if (newFullName) {
+          updateData.user_metadata = { full_name: newFullName }
+        }
+
+        const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+          userIdToUpdate,
+          updateData
+        )
+        
+        if (updateError) {
+          throw updateError
+        }
+
+        // Update profile if full_name changed
+        if (newFullName) {
+          const { error: profileUpdateError } = await supabaseAdmin
+            .from('profiles')
+            .update({ full_name: newFullName })
+            .eq('user_id', userIdToUpdate)
+          
+          if (profileUpdateError) {
+            console.error('Profile update error:', profileUpdateError)
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ user: updatedUser.user }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
