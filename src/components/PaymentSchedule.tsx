@@ -392,7 +392,7 @@ export const PaymentSchedule = ({
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>График платежей</CardTitle>
       </CardHeader>
