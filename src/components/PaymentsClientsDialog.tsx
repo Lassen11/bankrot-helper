@@ -1,7 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 interface PaymentsClientsDialogProps {
   open: boolean;
@@ -10,26 +12,28 @@ interface PaymentsClientsDialogProps {
   isAdmin: boolean;
 }
 
-interface ClientPayment {
-  client_id: string;
+interface Payment {
+  id: string;
   client_name: string;
-  total_amount: number;
-  completed_amount: number;
-  payments_count: number;
-  completed_count: number;
+  amount: number;
+  due_date: string;
+  is_completed: boolean;
+  account: string | null;
+  payment_type: string;
 }
 
 export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: PaymentsClientsDialogProps) => {
-  const [clients, setClients] = useState<ClientPayment[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showAllPayments, setShowAllPayments] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchClientsPayments();
+      fetchPayments();
     }
-  }, [open, userId, isAdmin]);
+  }, [open, userId, isAdmin, showAllPayments]);
 
-  const fetchClientsPayments = async () => {
+  const fetchPayments = async () => {
     setLoading(true);
     try {
       const currentDate = new Date();
@@ -48,15 +52,21 @@ export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: P
       const { data: clientsData, error: clientsError } = await clientsQuery;
       if (clientsError) throw clientsError;
 
-      // Получаем платежи за текущий месяц
+      // Получаем платежи
       const clientIds = clientsData?.map(c => c.id) || [];
       
       let paymentsQuery = supabase
         .from('payments')
-        .select('client_id, original_amount, custom_amount, is_completed')
-        .gte('due_date', startDate.toISOString().split('T')[0])
-        .lte('due_date', endDate.toISOString().split('T')[0])
-        .neq('payment_number', 0);
+        .select('id, client_id, original_amount, custom_amount, is_completed, due_date, account, payment_type')
+        .neq('payment_number', 0)
+        .order('due_date', { ascending: false });
+
+      // Фильтруем по текущему месяцу, если не показываем все платежи
+      if (!showAllPayments) {
+        paymentsQuery = paymentsQuery
+          .gte('due_date', startDate.toISOString().split('T')[0])
+          .lte('due_date', endDate.toISOString().split('T')[0]);
+      }
 
       if (clientIds.length > 0) {
         paymentsQuery = paymentsQuery.in('client_id', clientIds);
@@ -65,30 +75,21 @@ export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: P
       const { data: paymentsData, error: paymentsError } = await paymentsQuery;
       if (paymentsError) throw paymentsError;
 
-      // Группируем платежи по клиентам
-      const clientsMap = new Map<string, ClientPayment>();
+      // Создаем Map клиентов для быстрого доступа
+      const clientsMap = new Map(clientsData?.map(c => [c.id, c.full_name]) || []);
 
-      clientsData?.forEach(client => {
-        const clientPayments = paymentsData?.filter(p => p.client_id === client.id) || [];
-        
-        if (clientPayments.length > 0) {
-          const totalAmount = clientPayments.reduce((sum, p) => sum + (p.custom_amount ?? p.original_amount), 0);
-          const completedAmount = clientPayments
-            .filter(p => p.is_completed)
-            .reduce((sum, p) => sum + (p.custom_amount ?? p.original_amount), 0);
+      // Формируем список платежей
+      const formattedPayments: Payment[] = paymentsData?.map(payment => ({
+        id: payment.id,
+        client_name: clientsMap.get(payment.client_id) || 'Неизвестный клиент',
+        amount: payment.custom_amount ?? payment.original_amount,
+        due_date: payment.due_date,
+        is_completed: payment.is_completed,
+        account: payment.account,
+        payment_type: payment.payment_type,
+      })) || [];
 
-          clientsMap.set(client.id, {
-            client_id: client.id,
-            client_name: client.full_name,
-            total_amount: totalAmount,
-            completed_amount: completedAmount,
-            payments_count: clientPayments.length,
-            completed_count: clientPayments.filter(p => p.is_completed).length,
-          });
-        }
-      });
-
-      setClients(Array.from(clientsMap.values()));
+      setPayments(formattedPayments);
     } catch (error) {
       console.error('Ошибка загрузки данных:', error);
     } finally {
@@ -107,44 +108,54 @@ export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: P
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Платежи клиентов за текущий месяц</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              {showAllPayments ? 'История всех платежей' : 'История последних платежей'}
+            </DialogTitle>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAllPayments(!showAllPayments)}
+            >
+              {showAllPayments ? 'Текущий месяц' : 'Все платежи'}
+            </Button>
+          </div>
         </DialogHeader>
         
         {loading ? (
           <div className="text-center py-8">Загрузка...</div>
-        ) : clients.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">Нет платежей за текущий месяц</div>
+        ) : payments.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {showAllPayments ? 'Нет платежей' : 'Нет платежей за текущий месяц'}
+          </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Клиент</TableHead>
-                <TableHead className="text-right">Платежей</TableHead>
-                <TableHead className="text-right">Общая сумма</TableHead>
-                <TableHead className="text-right">Оплачено</TableHead>
-                <TableHead className="text-right">Прогресс</TableHead>
+                <TableHead>Дата</TableHead>
+                <TableHead>Счет</TableHead>
+                <TableHead className="text-right">Сумма</TableHead>
+                <TableHead className="text-center">Статус</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clients.map((client) => {
-                const progress = client.total_amount > 0 
-                  ? Math.round((client.completed_amount / client.total_amount) * 100) 
-                  : 0;
-                
-                return (
-                  <TableRow key={client.client_id}>
-                    <TableCell className="font-medium">{client.client_name}</TableCell>
-                    <TableCell className="text-right">
-                      {client.completed_count}/{client.payments_count}
-                    </TableCell>
-                    <TableCell className="text-right">{formatAmount(client.total_amount)}</TableCell>
-                    <TableCell className="text-right">{formatAmount(client.completed_amount)}</TableCell>
-                    <TableCell className="text-right">{progress}%</TableCell>
-                  </TableRow>
-                );
-              })}
+              {payments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell className="font-medium">{payment.client_name}</TableCell>
+                  <TableCell>{format(new Date(payment.due_date), 'dd.MM.yyyy')}</TableCell>
+                  <TableCell>{payment.account || '-'}</TableCell>
+                  <TableCell className="text-right">{formatAmount(payment.amount)}</TableCell>
+                  <TableCell className="text-center">
+                    {payment.is_completed ? (
+                      <span className="text-green-600 font-medium">Оплачен</span>
+                    ) : (
+                      <span className="text-orange-600 font-medium">Ожидает</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}
