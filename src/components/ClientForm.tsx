@@ -28,6 +28,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     contractAmount: "",
     installmentPeriod: "",
     firstPayment: "",
+    monthlyPayment: "",
     remainingAmount: "",
     paymentDay: "1",
     contractDate: new Date().toISOString().split('T')[0], // Today's date as default
@@ -55,28 +56,57 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     }
   }, [isAdmin]);
 
-  // Автоматический расчет ежемесячного платежа
+  // Автоматический расчет суммы договора из ежемесячного платежа
+  const calculateContractAmount = () => {
+    const monthlyPayment = parseFloat(formData.monthlyPayment) || 0;
+    const firstPayment = parseFloat(formData.firstPayment) || 0;
+    const installmentPeriod = parseInt(formData.installmentPeriod) || 1;
+    
+    if (monthlyPayment > 0) {
+      return firstPayment + (monthlyPayment * installmentPeriod);
+    }
+    return parseFloat(formData.contractAmount) || 0;
+  };
+
+  // Автоматический расчет ежемесячного платежа из суммы договора
   const calculateMonthlyPayment = () => {
     const contractAmount = parseFloat(formData.contractAmount) || 0;
     const firstPayment = parseFloat(formData.firstPayment) || 0;
     const installmentPeriod = parseInt(formData.installmentPeriod) || 1;
     
-    return (contractAmount - firstPayment) / installmentPeriod;
+    if (contractAmount > 0 && !formData.monthlyPayment) {
+      return (contractAmount - firstPayment) / installmentPeriod;
+    }
+    return parseFloat(formData.monthlyPayment) || 0;
   };
 
   // Автоматический расчет остатка к оплате
   const calculateRemainingAmount = () => {
-    const contractAmount = parseFloat(formData.contractAmount) || 0;
+    const contractAmount = calculateContractAmount();
     const firstPayment = parseFloat(formData.firstPayment) || 0;
     
     return contractAmount - firstPayment;
   };
 
+  const contractAmount = calculateContractAmount();
   const monthlyPayment = calculateMonthlyPayment();
   const remainingAmount = calculateRemainingAmount();
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Если меняется сумма договора, очищаем ежемесячный платеж
+      if (field === 'contractAmount') {
+        updated.monthlyPayment = '';
+      }
+      // Если меняется ежемесячный платеж, очищаем сумму договора
+      if (field === 'monthlyPayment') {
+        updated.contractAmount = '';
+      }
+      
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,7 +136,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         .insert([
           {
             full_name: formData.fullName,
-            contract_amount: parseFloat(formData.contractAmount),
+            contract_amount: contractAmount,
             installment_period: parseInt(formData.installmentPeriod),
             first_payment: parseFloat(formData.firstPayment),
             monthly_payment: monthlyPayment,
@@ -133,6 +163,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         contractAmount: "",
         installmentPeriod: "",
         firstPayment: "",
+        monthlyPayment: "",
         remainingAmount: "",
         paymentDay: "1",
         contractDate: new Date().toISOString().split('T')[0],
@@ -190,9 +221,12 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
                 min="0"
                 value={formData.contractAmount}
                 onChange={(e) => handleInputChange("contractAmount", e.target.value)}
-                placeholder="0.00"
-                required
+                placeholder="Рассчитается автоматически"
+                disabled={!!formData.monthlyPayment}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              {formData.monthlyPayment ? "Рассчитано из ежемесячного платежа" : "Или введите ежемесячный платеж"}
+            </p>
           </div>
 
           {isAdmin && employees.length > 0 && (
@@ -269,42 +303,37 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="monthlyPayment">Ежемесячный платеж (₽)</Label>
-              <div className="relative">
-                <Input
-                  id="monthlyPayment"
-                  type="text"
-                  value={monthlyPayment > 0 ? monthlyPayment.toFixed(2) : "0.00"}
-                  readOnly
-                  className="bg-muted cursor-default"
-                  placeholder="Рассчитывается автоматически"
-                />
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
-                  авто
-                </div>
-              </div>
+              <Input
+                id="monthlyPayment"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.monthlyPayment}
+                onChange={(e) => handleInputChange("monthlyPayment", e.target.value)}
+                placeholder="Рассчитается автоматически"
+                disabled={!!formData.contractAmount}
+              />
               <p className="text-xs text-muted-foreground mt-1">
-                (Сумма договора - Первый платеж) ÷ Месяцы рассрочки
+                {formData.contractAmount ? "Рассчитано из суммы договора" : "Или введите сумму договора"}
               </p>
             </div>
 
             <div>
-              <Label htmlFor="remainingAmount">Остаток к оплате (₽)</Label>
-              <div className="relative">
-                <Input
-                  id="remainingAmount"
-                  type="text"
-                  value={remainingAmount > 0 ? remainingAmount.toFixed(2) : "0.00"}
-                  readOnly
-                  className="bg-muted cursor-default"
-                  placeholder="Рассчитывается автоматически"
-                />
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
-                  авто
+              <Label htmlFor="calculatedAmount">Рассчитанные значения</Label>
+              <div className="space-y-2 p-3 bg-muted rounded-md">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Сумма договора:</span>
+                  <span className="font-medium">{contractAmount > 0 ? contractAmount.toFixed(2) : "0.00"} ₽</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Ежемесячный платеж:</span>
+                  <span className="font-medium">{monthlyPayment > 0 ? monthlyPayment.toFixed(2) : "0.00"} ₽</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Остаток к оплате:</span>
+                  <span className="font-medium">{remainingAmount > 0 ? remainingAmount.toFixed(2) : "0.00"} ₽</span>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Сумма договора - Первый платеж
-              </p>
             </div>
           </div>
 

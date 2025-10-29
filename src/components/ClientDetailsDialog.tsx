@@ -58,6 +58,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
   const [isEditingClient, setIsEditingClient] = useState(false);
   const [editedClient, setEditedClient] = useState<Partial<Client>>({});
   const [editedContractDate, setEditedContractDate] = useState<Date | undefined>(undefined);
+  const [editMode, setEditMode] = useState<'contract' | 'monthly'>('contract');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -195,7 +196,40 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       contract_date: client.contract_date
     });
     setEditedContractDate(new Date(client.contract_date));
+    setEditMode('contract');
     setIsEditingClient(true);
+  };
+
+  const calculateFromMonthlyPayment = () => {
+    if (!editedClient.monthly_payment || !editedClient.first_payment || !editedClient.installment_period) {
+      return editedClient.contract_amount || 0;
+    }
+    return editedClient.first_payment + (editedClient.monthly_payment * editedClient.installment_period);
+  };
+
+  const calculateFromContractAmount = () => {
+    if (!editedClient.contract_amount || !editedClient.first_payment || !editedClient.installment_period) {
+      return editedClient.monthly_payment || 0;
+    }
+    return (editedClient.contract_amount - editedClient.first_payment) / editedClient.installment_period;
+  };
+
+  const handleContractAmountChange = (value: number) => {
+    setEditMode('contract');
+    setEditedClient({ 
+      ...editedClient, 
+      contract_amount: value,
+      monthly_payment: undefined
+    });
+  };
+
+  const handleMonthlyPaymentChange = (value: number) => {
+    setEditMode('monthly');
+    setEditedClient({ 
+      ...editedClient, 
+      monthly_payment: value,
+      contract_amount: undefined
+    });
   };
 
   const saveClientEdits = async () => {
@@ -205,8 +239,18 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       const contractDateChanged = editedContractDate && 
         format(editedContractDate, 'yyyy-MM-dd') !== client.contract_date;
 
+      // Рассчитываем финальные значения в зависимости от режима редактирования
+      const finalContractAmount = editMode === 'monthly' 
+        ? calculateFromMonthlyPayment() 
+        : editedClient.contract_amount;
+      const finalMonthlyPayment = editMode === 'contract' 
+        ? calculateFromContractAmount() 
+        : editedClient.monthly_payment;
+
       const updateData = {
         ...editedClient,
+        contract_amount: finalContractAmount,
+        monthly_payment: finalMonthlyPayment,
         contract_date: editedContractDate ? format(editedContractDate, 'yyyy-MM-dd') : client.contract_date
       };
 
@@ -392,11 +436,17 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Сумма договора</p>
                     {isEditingClient ? (
-                      <Input
-                        type="number"
-                        value={editedClient.contract_amount || ''}
-                        onChange={(e) => setEditedClient({ ...editedClient, contract_amount: parseFloat(e.target.value) })}
-                      />
+                      <div>
+                        <Input
+                          type="number"
+                          value={editMode === 'contract' ? (editedClient.contract_amount || '') : calculateFromMonthlyPayment().toFixed(2)}
+                          onChange={(e) => handleContractAmountChange(parseFloat(e.target.value))}
+                          disabled={editMode === 'monthly'}
+                        />
+                        {editMode === 'monthly' && (
+                          <p className="text-xs text-muted-foreground mt-1">Рассчитано из ежемесячного платежа</p>
+                        )}
+                      </div>
                     ) : (
                       <p className="text-lg font-semibold text-green-600">
                         {formatAmount(client.contract_amount)}
@@ -441,11 +491,17 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Ежемесячный платеж</p>
                     {isEditingClient ? (
-                      <Input
-                        type="number"
-                        value={editedClient.monthly_payment || ''}
-                        onChange={(e) => setEditedClient({ ...editedClient, monthly_payment: parseFloat(e.target.value) })}
-                      />
+                      <div>
+                        <Input
+                          type="number"
+                          value={editMode === 'monthly' ? (editedClient.monthly_payment || '') : calculateFromContractAmount().toFixed(2)}
+                          onChange={(e) => handleMonthlyPaymentChange(parseFloat(e.target.value))}
+                          disabled={editMode === 'contract'}
+                        />
+                        {editMode === 'contract' && (
+                          <p className="text-xs text-muted-foreground mt-1">Рассчитано из суммы договора</p>
+                        )}
+                      </div>
                     ) : (
                       <p className="font-medium">{formatAmount(client.monthly_payment)}</p>
                     )}
