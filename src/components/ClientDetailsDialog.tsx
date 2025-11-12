@@ -63,6 +63,8 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
   const [editMode, setEditMode] = useState<'contract' | 'monthly'>('contract');
   const [terminationReason, setTerminationReason] = useState("");
   const [isTerminating, setIsTerminating] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState("");
+  const [isSuspending, setIsSuspending] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -410,6 +412,41 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     }
   };
 
+  const handleSuspendContract = async () => {
+    if (!client || !clientId) return;
+
+    setIsSuspending(true);
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          is_suspended: true,
+          suspended_at: new Date().toISOString(),
+          suspension_reason: suspensionReason || null
+        })
+        .eq('id', clientId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Договор приостановлен",
+        description: "Договор с клиентом успешно приостановлен",
+      });
+
+      onOpenChange(false);
+      setSuspensionReason("");
+    } catch (error) {
+      console.error('Error suspending contract:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось приостановить договор",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSuspending(false);
+    }
+  };
+
   if (!client && !loading) return null;
 
   return (
@@ -424,6 +461,42 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
             <div className="flex gap-2">
               {!isEditingClient ? (
                 <>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="text-orange-600 hover:text-orange-700 border-orange-600 hover:border-orange-700">
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        Приостановить
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Приостановка договора</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Вы уверены, что хотите приостановить договор с клиентом {client?.full_name}? 
+                          Клиент будет перемещен в историю приостановок.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Причина приостановки (необязательно)</label>
+                        <Textarea
+                          placeholder="Укажите причину приостановки договора..."
+                          value={suspensionReason}
+                          onChange={(e) => setSuspensionReason(e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleSuspendContract}
+                          disabled={isSuspending}
+                          className="bg-orange-600 text-white hover:bg-orange-700"
+                        >
+                          {isSuspending ? "Приостановка..." : "Приостановить договор"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive" size="sm">

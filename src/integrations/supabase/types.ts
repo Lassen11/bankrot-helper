@@ -95,10 +95,13 @@ export type Database = {
           full_name: string
           id: string
           installment_period: number
+          is_suspended: boolean
           is_terminated: boolean
           monthly_payment: number
           payment_day: number
           remaining_amount: number
+          suspended_at: string | null
+          suspension_reason: string | null
           terminated_at: string | null
           termination_reason: string | null
           total_paid: number | null
@@ -116,10 +119,13 @@ export type Database = {
           full_name: string
           id?: string
           installment_period: number
+          is_suspended?: boolean
           is_terminated?: boolean
           monthly_payment: number
           payment_day?: number
           remaining_amount?: number
+          suspended_at?: string | null
+          suspension_reason?: string | null
           terminated_at?: string | null
           termination_reason?: string | null
           total_paid?: number | null
@@ -137,10 +143,13 @@ export type Database = {
           full_name?: string
           id?: string
           installment_period?: number
+          is_suspended?: boolean
           is_terminated?: boolean
           monthly_payment?: number
           payment_day?: number
           remaining_amount?: number
+          suspended_at?: string | null
+          suspension_reason?: string | null
           terminated_at?: string | null
           termination_reason?: string | null
           total_paid?: number | null

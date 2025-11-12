@@ -49,6 +49,7 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
         .from('clients')
         .select('*')
         .eq('is_terminated', false)
+        .eq('is_suspended', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

@@ -43,7 +43,8 @@ const Index = () => {
       let query = supabase
         .from('clients')
         .select('contract_amount, total_paid, id, monthly_payment')
-        .eq('is_terminated', false);
+        .eq('is_terminated', false)
+        .eq('is_suspended', false);
       
       // Если не админ, показываем только своих клиентов
       if (!isAdmin) {

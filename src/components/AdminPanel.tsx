@@ -16,6 +16,7 @@ import { PaymentsCalendar } from "./PaymentsCalendar";
 import { AgentsManagement } from "./AgentsManagement";
 import { AdminBonusManagement } from "./AdminBonusManagement";
 import { TerminatedClientsHistory } from "./TerminatedClientsHistory";
+import { SuspendedClientsHistory } from "./SuspendedClientsHistory";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -103,11 +104,12 @@ export const AdminPanel = () => {
       // Подсчитываем только сотрудников (исключаем администраторов)
       const employeeCount = userRoles?.filter(ur => ur.role === 'employee').length || 0;
 
-      // Получаем всех клиентов или только клиентов выбранного сотрудника (исключая расторгнутых)
+      // Получаем всех клиентов или только клиентов выбранного сотрудника (исключая расторгнутых и приостановленных)
       let clientsQuery = supabase
         .from('clients')
         .select('contract_amount, total_paid, id, monthly_payment')
-        .eq('is_terminated', false);
+        .eq('is_terminated', false)
+        .eq('is_suspended', false);
 
       // Фильтруем по сотруднику если выбран
       if (selectedEmployee !== 'all') {
@@ -253,7 +255,8 @@ export const AdminPanel = () => {
             .from('clients')
             .select('contract_amount, total_paid')
             .eq('user_id', userRole.user_id)
-            .eq('is_terminated', false);
+            .eq('is_terminated', false)
+            .eq('is_suspended', false);
 
           if (clientsError) {
             console.error(`Ошибка загрузки клиентов для пользователя ${userRole.user_id}:`, clientsError);
@@ -430,12 +433,13 @@ export const AdminPanel = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="employees">Сотрудники</TabsTrigger>
           <TabsTrigger value="bonuses">Премии</TabsTrigger>
           <TabsTrigger value="agents">Агенты</TabsTrigger>
           <TabsTrigger value="terminated">Расторжения</TabsTrigger>
+          <TabsTrigger value="suspended">Приостановки</TabsTrigger>
           <TabsTrigger value="clients">Добавить клиента</TabsTrigger>
           <TabsTrigger value="import-export">Импорт/Экспорт</TabsTrigger>
           <TabsTrigger value="management">Управление</TabsTrigger>
@@ -773,6 +777,10 @@ export const AdminPanel = () => {
 
         <TabsContent value="terminated" className="space-y-6">
           <TerminatedClientsHistory />
+        </TabsContent>
+
+        <TabsContent value="suspended" className="space-y-6">
+          <SuspendedClientsHistory />
         </TabsContent>
 
         <TabsContent value="import-export" className="space-y-6">
