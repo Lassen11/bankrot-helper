@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Download, Upload, FileSpreadsheet, RefreshCw } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 interface Client {
@@ -35,6 +35,8 @@ interface Employee {
 export const ImportExportPanel = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   const handleExport = async () => {
@@ -308,9 +310,97 @@ export const ImportExportPanel = () => {
     return new Date().toISOString().split('T')[0];
   };
 
+  const handleSyncToPnltracker = async () => {
+    setIsSyncing(true);
+    setSyncProgress({ current: 0, total: 0 });
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Ошибка авторизации",
+          description: "Пользователь не авторизован",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Получаем всех клиентов
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('is_terminated', false)
+        .order('created_at', { ascending: false });
+
+      if (clientsError) throw clientsError;
+
+      if (!clients || clients.length === 0) {
+        toast({
+          title: "Нет данных",
+          description: "Нет клиентов для синхронизации",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSyncProgress({ current: 0, total: clients.length });
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < clients.length; i++) {
+        const client = clients[i];
+        
+        try {
+          // Отправляем данные клиента в pnltracker
+          const { error: functionError } = await supabase.functions.invoke('send-to-pnltracker', {
+            body: {
+              event_type: 'new_client',
+              client_name: client.full_name,
+              contract_amount: client.contract_amount,
+              first_payment: client.first_payment,
+              date: client.contract_date,
+              income_account: 'Расчетный счет',
+              company: 'Спасение',
+              user_id: client.employee_id || user.id,
+              description: `Синхронизация существующего клиента. Остаток: ${client.remaining_amount}`
+            }
+          });
+
+          if (functionError) {
+            console.error('Sync error for client:', client.full_name, functionError);
+            errorCount++;
+          } else {
+            successCount++;
+          }
+        } catch (error) {
+          console.error('Error syncing client:', client.full_name, error);
+          errorCount++;
+        }
+
+        setSyncProgress({ current: i + 1, total: clients.length });
+      }
+
+      toast({
+        title: "Синхронизация завершена",
+        description: `Успешно: ${successCount}, Ошибок: ${errorCount}`,
+      });
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Ошибка синхронизации",
+        description: "Не удалось синхронизировать данные",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress({ current: 0, total: 0 });
+    }
+  };
+
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Экспорт данных */}
         <Card>
           <CardHeader>
@@ -367,6 +457,46 @@ export const ImportExportPanel = () => {
               <p className="text-sm text-muted-foreground">
                 Импортируем данные...
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Синхронизация с pnltracker */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5" />
+              Синхронизация с PnL Tracker
+            </CardTitle>
+            <CardDescription>
+              Отправить данные существующих клиентов в PnL Tracker
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              onClick={handleSyncToPnltracker}
+              disabled={isSyncing}
+              className="w-full"
+            >
+              {isSyncing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Синхронизация... ({syncProgress.current}/{syncProgress.total})
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Синхронизировать клиентов
+                </>
+              )}
+            </Button>
+            {isSyncing && (
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${syncProgress.total > 0 ? (syncProgress.current / syncProgress.total) * 100 : 0}%` }}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
