@@ -54,14 +54,13 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
 
       if (error) throw error;
 
-      // Получаем ближайшие платежи для каждого клиента
+      // Получаем ближайшие/просроченные платежи для каждого клиента
       const clientsWithPayments = await Promise.all((data || []).map(async (client) => {
         const { data: payments } = await supabase
           .from('payments')
           .select('due_date, custom_amount, original_amount')
           .eq('client_id', client.id)
           .eq('is_completed', false)
-          .gte('due_date', new Date().toISOString().split('T')[0])
           .order('due_date', { ascending: true })
           .limit(1);
 
@@ -292,13 +291,24 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
                       <>
                         <div>
                           <p className="font-medium text-muted-foreground">Дата след. платежа</p>
-                          <p className="text-lg font-semibold text-orange-600">
+                          <p className={`text-lg font-semibold ${
+                            new Date(client.nextPayment.due_date) < new Date(new Date().toISOString().split('T')[0])
+                              ? 'text-red-600'
+                              : 'text-orange-600'
+                          }`}>
                             {new Date(client.nextPayment.due_date).toLocaleDateString('ru-RU')}
+                            {new Date(client.nextPayment.due_date) < new Date(new Date().toISOString().split('T')[0]) && (
+                              <span className="ml-1 text-xs">(просрочен)</span>
+                            )}
                           </p>
                         </div>
                         <div>
                           <p className="font-medium text-muted-foreground">Сумма след. платежа</p>
-                          <p className="text-lg font-semibold text-orange-600">
+                          <p className={`text-lg font-semibold ${
+                            new Date(client.nextPayment.due_date) < new Date(new Date().toISOString().split('T')[0])
+                              ? 'text-red-600'
+                              : 'text-orange-600'
+                          }`}>
                             {formatAmount(client.nextPayment.amount)}
                           </p>
                         </div>
