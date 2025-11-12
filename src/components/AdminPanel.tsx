@@ -782,8 +782,9 @@ export const AdminPanel = () => {
       <PaymentsClientsDialog 
         open={paymentsDialogOpen}
         onOpenChange={setPaymentsDialogOpen}
-        userId={selectedEmployee !== 'all' ? selectedEmployee : undefined}
+        userId={user?.id}
         isAdmin={true}
+        selectedEmployeeId={selectedEmployee !== 'all' ? selectedEmployee : undefined}
       />
     </div>
   );

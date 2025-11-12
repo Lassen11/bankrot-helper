@@ -10,6 +10,7 @@ interface PaymentsClientsDialogProps {
   onOpenChange: (open: boolean) => void;
   userId?: string;
   isAdmin: boolean;
+  selectedEmployeeId?: string;
 }
 
 interface Payment {
@@ -22,7 +23,13 @@ interface Payment {
   payment_type: string;
 }
 
-export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: PaymentsClientsDialogProps) => {
+export const PaymentsClientsDialog = ({ 
+  open, 
+  onOpenChange, 
+  userId, 
+  isAdmin,
+  selectedEmployeeId
+}: PaymentsClientsDialogProps) => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAllPayments, setShowAllPayments] = useState(false);
@@ -31,7 +38,7 @@ export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: P
     if (open) {
       fetchPayments();
     }
-  }, [open, userId, isAdmin, showAllPayments]);
+  }, [open, userId, isAdmin, showAllPayments, selectedEmployeeId]);
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -43,10 +50,13 @@ export const PaymentsClientsDialog = ({ open, onOpenChange, userId, isAdmin }: P
       // Получаем клиентов
       let clientsQuery = supabase
         .from('clients')
-        .select('id, full_name, user_id');
+        .select('id, full_name, employee_id');
 
-      if (!isAdmin && userId) {
-        clientsQuery = clientsQuery.eq('user_id', userId);
+      // Фильтруем по сотруднику
+      const employeeIdToFilter = selectedEmployeeId || (!isAdmin ? userId : undefined);
+      
+      if (employeeIdToFilter) {
+        clientsQuery = clientsQuery.eq('employee_id', employeeIdToFilter);
       }
 
       const { data: clientsData, error: clientsError } = await clientsQuery;
