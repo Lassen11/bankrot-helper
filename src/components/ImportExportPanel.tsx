@@ -23,6 +23,9 @@ interface Client {
   payment_day: number;
   user_id: string;
   employee_id: string;
+  city?: string;
+  source?: string;
+  manager?: string;
   created_at: string;
   updated_at: string;
 }
