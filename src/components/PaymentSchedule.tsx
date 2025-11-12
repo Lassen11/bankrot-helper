@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, Edit, Save, X, CalendarIcon } from "lucide-react";
+import { Check, Edit, CalendarIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -275,13 +275,11 @@ export const PaymentSchedule = ({
     setEditAmount(currentAmount);
   };
 
-  const saveCustomAmount = async () => {
-    if (!editingPayment) return;
-
+  const saveCustomAmount = async (paymentId: string, amount: number) => {
     const { error } = await supabase
       .from('payments')
-      .update({ custom_amount: editAmount })
-      .eq('id', editingPayment);
+      .update({ custom_amount: amount })
+      .eq('id', paymentId);
 
     if (error) {
       toast.error('Ошибка сохранения суммы');
@@ -289,8 +287,8 @@ export const PaymentSchedule = ({
     }
 
     const updatedPayments = payments.map(p => 
-      p.id === editingPayment 
-        ? { ...p, custom_amount: editAmount }
+      p.id === paymentId 
+        ? { ...p, custom_amount: amount }
         : p
     );
     setPayments(updatedPayments);
@@ -298,23 +296,16 @@ export const PaymentSchedule = ({
     toast.success('Сумма платежа обновлена');
   };
 
-  const cancelEditing = () => {
-    setEditingPayment(null);
-    setEditAmount(0);
-  };
-
   const startEditingDate = (paymentId: string, currentDate: string) => {
     setEditingDate(paymentId);
     setEditDate(new Date(currentDate));
   };
 
-  const saveCustomDate = async () => {
-    if (!editingDate || !editDate) return;
-
+  const saveCustomDate = async (paymentId: string, date: Date) => {
     const { error } = await supabase
       .from('payments')
-      .update({ due_date: format(editDate, 'yyyy-MM-dd') })
-      .eq('id', editingDate);
+      .update({ due_date: format(date, 'yyyy-MM-dd') })
+      .eq('id', paymentId);
 
     if (error) {
       toast.error('Ошибка сохранения даты');
@@ -322,8 +313,8 @@ export const PaymentSchedule = ({
     }
 
     const updatedPayments = payments.map(p => 
-      p.id === editingDate 
-        ? { ...p, due_date: format(editDate, 'yyyy-MM-dd') }
+      p.id === paymentId 
+        ? { ...p, due_date: format(date, 'yyyy-MM-dd') }
         : p
     );
     setPayments(updatedPayments);
@@ -332,23 +323,16 @@ export const PaymentSchedule = ({
     toast.success('Дата платежа обновлена');
   };
 
-  const cancelEditingDate = () => {
-    setEditingDate(null);
-    setEditDate(undefined);
-  };
-
   const startEditingAccount = (paymentId: string, currentAccount: string | null) => {
     setEditingAccount(paymentId);
     setEditAccount(currentAccount || "");
   };
 
-  const saveCustomAccount = async () => {
-    if (!editingAccount) return;
-
+  const saveCustomAccount = async (paymentId: string, account: string) => {
     const { error } = await supabase
       .from('payments')
-      .update({ account: editAccount || null })
-      .eq('id', editingAccount);
+      .update({ account: account || null })
+      .eq('id', paymentId);
 
     if (error) {
       toast.error('Ошибка сохранения счета');
@@ -356,18 +340,13 @@ export const PaymentSchedule = ({
     }
 
     const updatedPayments = payments.map(p => 
-      p.id === editingAccount 
-        ? { ...p, account: editAccount || null }
+      p.id === paymentId 
+        ? { ...p, account: account || null }
         : p
     );
     setPayments(updatedPayments);
     setEditingAccount(null);
     toast.success('Счет обновлен');
-  };
-
-  const cancelEditingAccount = () => {
-    setEditingAccount(null);
-    setEditAccount("");
   };
 
   const canCompletePayment = (payment: Payment) => {
@@ -425,39 +404,38 @@ export const PaymentSchedule = ({
                      <span className={`text-sm font-medium ${payment.is_completed ? 'line-through' : ''}`}>
                        {paymentType}
                      </span>
-                     {editingDate === payment.id ? (
-                       <div className="flex items-center gap-2 mt-1">
-                         <Popover>
-                           <PopoverTrigger asChild>
-                             <Button
-                               variant="outline"
-                               className={cn(
-                                 "h-6 px-2 text-xs font-normal",
-                                 !editDate && "text-muted-foreground"
-                               )}
-                             >
-                               <CalendarIcon className="h-3 w-3" />
-                               {editDate ? format(editDate, "dd.MM.yyyy") : "Выберите дату"}
-                             </Button>
-                           </PopoverTrigger>
-                           <PopoverContent className="w-auto p-0" align="start">
-                             <Calendar
-                               mode="single"
-                               selected={editDate}
-                               onSelect={setEditDate}
-                               initialFocus
-                               className={cn("p-3 pointer-events-auto")}
-                             />
-                           </PopoverContent>
-                         </Popover>
-                         <Button onClick={saveCustomDate} size="sm" variant="ghost" className="h-6 w-6 p-0">
-                           <Save className="w-3 h-3" />
-                         </Button>
-                         <Button onClick={cancelEditingDate} size="sm" variant="ghost" className="h-6 w-6 p-0">
-                           <X className="w-3 h-3" />
-                         </Button>
-                       </div>
-                     ) : (
+                      {editingDate === payment.id ? (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Popover open={editingDate === payment.id} onOpenChange={(open) => !open && setEditingDate(null)}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "h-6 px-2 text-xs font-normal",
+                                  !editDate && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="h-3 w-3" />
+                                {editDate ? format(editDate, "dd.MM.yyyy") : "Выберите дату"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={editDate}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    setEditDate(date);
+                                    saveCustomDate(payment.id, date);
+                                  }
+                                }}
+                                initialFocus
+                                className={cn("p-3 pointer-events-auto")}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      ) : (
                        <div className="flex items-center gap-1 group/date">
                          <p className={`text-xs text-muted-foreground ${payment.is_completed ? 'line-through' : ''}`}>
                            {new Date(payment.due_date).toLocaleDateString('ru-RU')}
@@ -477,27 +455,29 @@ export const PaymentSchedule = ({
                 
                  <div className="flex items-center gap-2">
                    {editingAccount === payment.id ? (
-                     <div className="flex items-center gap-2">
-                       <Select value={editAccount} onValueChange={setEditAccount}>
-                         <SelectTrigger className="w-40 h-8 text-xs">
-                           <SelectValue placeholder="Выберите счет" />
-                         </SelectTrigger>
-                         <SelectContent>
-                           {ACCOUNT_OPTIONS.map((account) => (
-                             <SelectItem key={account} value={account} className="text-xs">
-                               {account}
-                             </SelectItem>
-                           ))}
-                         </SelectContent>
-                       </Select>
-                       <Button onClick={saveCustomAccount} size="sm" variant="ghost" className="h-8 w-8 p-0">
-                         <Save className="w-3 h-3" />
-                       </Button>
-                       <Button onClick={cancelEditingAccount} size="sm" variant="ghost" className="h-8 w-8 p-0">
-                         <X className="w-3 h-3" />
-                       </Button>
-                     </div>
-                   ) : (
+                      <div className="flex items-center gap-2">
+                        <Select 
+                          value={editAccount} 
+                          onValueChange={(value) => {
+                            setEditAccount(value);
+                            saveCustomAccount(payment.id, value);
+                          }}
+                          open={editingAccount === payment.id}
+                          onOpenChange={(open) => !open && setEditingAccount(null)}
+                        >
+                          <SelectTrigger className="w-40 h-8 text-xs">
+                            <SelectValue placeholder="Выберите счет" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ACCOUNT_OPTIONS.map((account) => (
+                              <SelectItem key={account} value={account} className="text-xs">
+                                {account}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
                      <div className="flex items-center gap-2 group/account">
                        <span className={`text-xs text-muted-foreground min-w-[100px] ${payment.is_completed ? 'line-through' : ''}`}>
                          {payment.account || 'Не указан'}
@@ -513,24 +493,33 @@ export const PaymentSchedule = ({
                      </div>
                    )}
                    
-                   {isEditing ? (
-                     <div className="flex items-center gap-2">
-                       <Input
-                         type="number"
-                         value={editAmount}
-                         onChange={(e) => setEditAmount(parseFloat(e.target.value) || 0)}
-                         className="w-24 h-8 text-sm"
-                         step="0.01"
-                         min="0"
-                       />
-                       <Button onClick={saveCustomAmount} size="sm" variant="ghost" className="h-8 w-8 p-0">
-                         <Save className="w-3 h-3" />
-                       </Button>
-                       <Button onClick={cancelEditing} size="sm" variant="ghost" className="h-8 w-8 p-0">
-                         <X className="w-3 h-3" />
-                       </Button>
-                     </div>
-                   ) : (
+                    {isEditing ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(parseFloat(e.target.value) || 0)}
+                          onBlur={() => {
+                            if (editAmount !== (payment.custom_amount ?? payment.original_amount)) {
+                              saveCustomAmount(payment.id, editAmount);
+                            } else {
+                              setEditingPayment(null);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              saveCustomAmount(payment.id, editAmount);
+                            } else if (e.key === 'Escape') {
+                              setEditingPayment(null);
+                            }
+                          }}
+                          className="w-24 h-8 text-sm"
+                          step="0.01"
+                          min="0"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
                      <div className="flex items-center gap-2">
                        <span className={`font-semibold ${payment.is_completed ? 'line-through' : ''}`}>
                          {formatAmount(currentAmount)}
