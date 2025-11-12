@@ -25,6 +25,9 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [formData, setFormData] = useState({
     fullName: "",
+    city: "",
+    source: "",
+    manager: "",
     contractAmount: "",
     installmentPeriod: "",
     firstPayment: "",
@@ -136,6 +139,9 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         .insert([
           {
             full_name: formData.fullName,
+            city: formData.city,
+            source: formData.source,
+            manager: formData.manager,
             contract_amount: contractAmount,
             installment_period: parseInt(formData.installmentPeriod),
             first_payment: parseFloat(formData.firstPayment),
@@ -181,6 +187,9 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
 
       setFormData({
         fullName: "",
+        city: "",
+        source: "",
+        manager: "",
         contractAmount: "",
         installmentPeriod: "",
         firstPayment: "",
@@ -219,6 +228,53 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
               placeholder="Введите полное имя"
               required
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="city">Город</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => handleInputChange("city", e.target.value)}
+                placeholder="Введите город"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="source">Источник</Label>
+              <Select 
+                value={formData.source} 
+                onValueChange={(value) => handleInputChange("source", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите источник" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Авито">Авито</SelectItem>
+                  <SelectItem value="Сайт">Сайт</SelectItem>
+                  <SelectItem value="Квиз">Квиз</SelectItem>
+                  <SelectItem value="Рекомендация Руководителя">Рекомендация Руководителя</SelectItem>
+                  <SelectItem value="Рекомендация ОЗ">Рекомендация ОЗ</SelectItem>
+                  <SelectItem value="Рекомендация менеджера">Рекомендация менеджера</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="manager">Менеджер</Label>
+            <Select 
+              value={formData.manager} 
+              onValueChange={(value) => handleInputChange("manager", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите менеджера" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Рамазан Самурханов">Рамазан Самурханов</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
