@@ -673,7 +673,7 @@ export const AdminPanel = () => {
           </Card>
 
           {/* Календарь платежей */}
-          <PaymentsCalendar />
+          <PaymentsCalendar employeeId={selectedEmployee === 'all' ? undefined : selectedEmployee} />
         </TabsContent>
 
         <TabsContent value="employees" className="space-y-6">
