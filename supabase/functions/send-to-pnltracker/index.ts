@@ -21,6 +21,7 @@ interface NewClientPayload {
   source: string;
   contract_date: string;
   payment_day: number;
+  date: string;
   income_account: string;
   company: string;
   user_id: string;

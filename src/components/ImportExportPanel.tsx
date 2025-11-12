@@ -371,6 +371,7 @@ export const ImportExportPanel = () => {
               source: clientData.source || '',
               contract_date: client.contract_date,
               payment_day: client.payment_day,
+              date: client.contract_date,
               income_account: 'Расчетный счет',
               company: 'Спасение',
               user_id: client.employee_id || user.id,
