@@ -48,6 +48,7 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
       const { data, error } = await supabase
         .from('clients')
         .select('*')
+        .eq('is_terminated', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

@@ -42,7 +42,8 @@ const Index = () => {
     try {
       let query = supabase
         .from('clients')
-        .select('contract_amount, total_paid, id, monthly_payment');
+        .select('contract_amount, total_paid, id, monthly_payment')
+        .eq('is_terminated', false);
       
       // Если не админ, показываем только своих клиентов
       if (!isAdmin) {

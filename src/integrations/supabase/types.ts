@@ -95,9 +95,12 @@ export type Database = {
           full_name: string
           id: string
           installment_period: number
+          is_terminated: boolean
           monthly_payment: number
           payment_day: number
           remaining_amount: number
+          terminated_at: string | null
+          termination_reason: string | null
           total_paid: number | null
           updated_at: string | null
           user_id: string | null
@@ -113,9 +116,12 @@ export type Database = {
           full_name: string
           id?: string
           installment_period: number
+          is_terminated?: boolean
           monthly_payment: number
           payment_day?: number
           remaining_amount?: number
+          terminated_at?: string | null
+          termination_reason?: string | null
           total_paid?: number | null
           updated_at?: string | null
           user_id?: string | null
@@ -131,9 +137,12 @@ export type Database = {
           full_name?: string
           id?: string
           installment_period?: number
+          is_terminated?: boolean
           monthly_payment?: number
           payment_day?: number
           remaining_amount?: number
+          terminated_at?: string | null
+          termination_reason?: string | null
           total_paid?: number | null
           updated_at?: string | null
           user_id?: string | null
@@ -335,18 +344,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_first_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      create_first_admin: { Args: never; Returns: undefined }
       get_user_role: {
         Args: { user_uuid: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
-      is_admin: {
-        Args: { user_uuid?: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { user_uuid?: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "employee"

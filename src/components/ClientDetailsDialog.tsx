@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, CreditCard, User, CalendarIcon, Check, X, Pencil, Save } from "lucide-react";
+import { Calendar, CreditCard, User, CalendarIcon, Check, X, Pencil, Save, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,8 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Client {
   id: string;
@@ -59,6 +61,8 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
   const [editedClient, setEditedClient] = useState<Partial<Client>>({});
   const [editedContractDate, setEditedContractDate] = useState<Date | undefined>(undefined);
   const [editMode, setEditMode] = useState<'contract' | 'monthly'>('contract');
+  const [terminationReason, setTerminationReason] = useState("");
+  const [isTerminating, setIsTerminating] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -371,6 +375,41 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     setEditedContractDate(undefined);
   };
 
+  const handleTerminateContract = async () => {
+    if (!client || !clientId) return;
+
+    setIsTerminating(true);
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          is_terminated: true,
+          terminated_at: new Date().toISOString(),
+          termination_reason: terminationReason || null
+        })
+        .eq('id', clientId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Договор расторгнут",
+        description: "Договор с клиентом успешно расторгнут",
+      });
+
+      onOpenChange(false);
+      setTerminationReason("");
+    } catch (error) {
+      console.error('Error terminating contract:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось расторгнуть договор",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTerminating(false);
+    }
+  };
+
   if (!client && !loading) return null;
 
   return (
@@ -382,23 +421,63 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
               <User className="h-5 w-5" />
               Информация о клиенте
             </div>
-            {!isEditingClient ? (
-              <Button variant="outline" size="sm" onClick={startEditingClient}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Редактировать
-              </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button variant="default" size="sm" onClick={saveClientEdits}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Сохранить
-                </Button>
-                <Button variant="outline" size="sm" onClick={cancelEditingClient}>
-                  <X className="h-4 w-4 mr-2" />
-                  Отмена
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-2">
+              {!isEditingClient ? (
+                <>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        Расторгнуть договор
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Расторжение договора</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Вы уверены, что хотите расторгнуть договор с клиентом {client?.full_name}? 
+                          Это действие нельзя отменить. Клиент будет перемещен в историю расторжений.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Причина расторжения (необязательно)</label>
+                        <Textarea
+                          placeholder="Укажите причину расторжения договора..."
+                          value={terminationReason}
+                          onChange={(e) => setTerminationReason(e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleTerminateContract}
+                          disabled={isTerminating}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {isTerminating ? "Расторжение..." : "Расторгнуть договор"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  <Button variant="outline" size="sm" onClick={startEditingClient}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Редактировать
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="default" size="sm" onClick={saveClientEdits}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Сохранить
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={cancelEditingClient}>
+                    <X className="h-4 w-4 mr-2" />
+                    Отмена
+                  </Button>
+                </>
+              )}
+            </div>
           </DialogTitle>
         </DialogHeader>
 
