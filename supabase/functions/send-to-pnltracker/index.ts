@@ -12,8 +12,15 @@ interface NewClientPayload {
   client_name: string;
   organization_name?: string;
   contract_amount: number;
+  total_paid?: number;
+  installment_period?: number;
   first_payment: number;
+  monthly_payment?: number;
+  manager?: string;
+  city?: string;
+  source?: string;
   date: string;
+  payment_day?: number;
   income_account: string;
   company: string;
   user_id: string;
