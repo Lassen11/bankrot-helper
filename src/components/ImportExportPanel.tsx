@@ -356,6 +356,7 @@ export const ImportExportPanel = () => {
         
         try {
           // Отправляем данные клиента в pnltracker
+          const clientData: any = client;
           const { error: functionError } = await supabase.functions.invoke('send-to-pnltracker', {
             body: {
               event_type: 'new_client',
@@ -365,9 +366,9 @@ export const ImportExportPanel = () => {
               installment_period: client.installment_period,
               first_payment: client.first_payment,
               monthly_payment: client.monthly_payment,
-              manager: client.manager || '',
-              city: client.city || '',
-              source: client.source || '',
+              manager: clientData.manager || '',
+              city: clientData.city || '',
+              source: clientData.source || '',
               contract_date: client.contract_date,
               payment_day: client.payment_day,
               income_account: 'Расчетный счет',
