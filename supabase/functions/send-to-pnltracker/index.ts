@@ -12,21 +12,16 @@ interface NewClientPayload {
   client_name: string;
   organization_name?: string;
   contract_amount: number;
+  total_paid: number;
+  installment_period: number;
   first_payment: number;
-  date: string;
+  monthly_payment: number;
+  manager: string;
+  city: string;
+  source: string;
+  contract_date: string;
+  payment_day: number;
   income_account: string;
-  company: string;
-  user_id: string;
-  description?: string;
-}
-
-interface NewPaymentPayload {
-  event_type: 'new_payment';
-  client_name: string;
-  organization_name?: string;
-  amount: number;
-  date: string;
-  income_account?: string;
   company: string;
   user_id: string;
   description?: string;
@@ -39,7 +34,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload: NewClientPayload | NewPaymentPayload = await req.json();
+    const payload: NewClientPayload = await req.json();
     
     console.log('Sending data to pnltracker:', payload);
 
