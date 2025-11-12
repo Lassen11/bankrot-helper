@@ -19,7 +19,7 @@ interface PaymentScheduleProps {
   monthlyPayment: number;
   installmentPeriod: number;
   paymentDay: number;
-  createdAt: string;
+  contractDate: string;
   onRemainingPaymentsChange?: (remaining: number, completionDate: Date) => void;
   onPaymentUpdate?: () => void; // Callback для обновления данных клиента
 }
@@ -52,7 +52,7 @@ export const PaymentSchedule = ({
   monthlyPayment,
   installmentPeriod,
   paymentDay,
-  createdAt,
+  contractDate,
   onRemainingPaymentsChange,
   onPaymentUpdate
 }: PaymentScheduleProps) => {
@@ -115,7 +115,7 @@ export const PaymentSchedule = ({
     if (!user) return;
     
     const paymentsToCreate = [];
-    const startDate = new Date(createdAt);
+    const startDate = new Date(contractDate);
     
     // Первый платеж - остается без изменений
     paymentsToCreate.push({

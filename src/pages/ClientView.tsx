@@ -24,6 +24,7 @@ interface Client {
   deposit_paid: number;
   deposit_target: number;
   payment_day: number;
+  contract_date: string;
   created_at: string;
   updated_at: string;
 }
@@ -239,7 +240,7 @@ export default function ClientView() {
           </Card>
 
           {/* Payment Schedule */}
-          <PaymentSchedule clientId={client.id} contractAmount={client.contract_amount} firstPayment={client.first_payment} monthlyPayment={client.monthly_payment} installmentPeriod={client.installment_period} paymentDay={client.payment_day} createdAt={client.created_at} onRemainingPaymentsChange={(remaining, completion) => {
+          <PaymentSchedule clientId={client.id} contractAmount={client.contract_amount} firstPayment={client.first_payment} monthlyPayment={client.monthly_payment} installmentPeriod={client.installment_period} paymentDay={client.payment_day} contractDate={client.contract_date} onRemainingPaymentsChange={(remaining, completion) => {
           setRemainingPayments(remaining);
           setCompletionDate(completion);
         }} onPaymentUpdate={() => {
