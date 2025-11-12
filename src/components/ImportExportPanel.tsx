@@ -349,7 +349,7 @@ export const ImportExportPanel = () => {
       let errorCount = 0;
 
       for (let i = 0; i < clients.length; i++) {
-        const client = clients[i];
+        const client = clients[i] as any; // Temporary until types.ts updates
         
         try {
           // Отправляем данные клиента в pnltracker
