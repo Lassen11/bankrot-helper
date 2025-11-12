@@ -332,7 +332,7 @@ export const ImportExportPanel = () => {
       const { data: clients, error: clientsError } = await supabase
         .from('clients')
         .select('*')
-        .eq('is_terminated', false)
+        .or('is_terminated.eq.false,is_terminated.is.null')
         .order('created_at', { ascending: false });
 
       if (clientsError) throw clientsError;
@@ -348,8 +348,9 @@ export const ImportExportPanel = () => {
 
       setSyncProgress({ current: 0, total: clients.length });
 
-      let successCount = 0;
-      let errorCount = 0;
+       let successCount = 0;
+       let errorCount = 0;
+       let firstError: string | null = null;
 
       for (let i = 0; i < clients.length; i++) {
         const client = clients[i];
@@ -357,7 +358,7 @@ export const ImportExportPanel = () => {
         try {
           // Отправляем данные клиента в pnltracker
           const clientData: any = client;
-          const { error: functionError } = await supabase.functions.invoke('send-to-pnltracker', {
+          const { data: fnData, error: functionError } = await supabase.functions.invoke('send-to-pnltracker', {
             body: {
               event_type: 'new_client',
               client_name: client.full_name,
@@ -379,12 +380,15 @@ export const ImportExportPanel = () => {
             }
           });
 
-          if (functionError) {
-            console.error('Sync error for client:', client.full_name, functionError);
-            errorCount++;
-          } else {
-            successCount++;
-          }
+           if (functionError || !(fnData as any)?.success) {
+             console.error('Sync error for client:', client.full_name, functionError || (fnData as any));
+             if (!firstError) {
+               firstError = ((fnData as any)?.error as string) || (functionError as any)?.message || 'Неизвестная ошибка';
+             }
+             errorCount++;
+           } else {
+             successCount++;
+           }
         } catch (error) {
           console.error('Error syncing client:', client.full_name, error);
           errorCount++;
@@ -395,7 +399,7 @@ export const ImportExportPanel = () => {
 
       toast({
         title: "Синхронизация завершена",
-        description: `Успешно: ${successCount}, Ошибок: ${errorCount}`,
+         description: `Успешно: ${successCount}, Ошибок: ${errorCount}${firstError ? ' — ' + firstError : ''}`,
       });
     } catch (error) {
       console.error('Sync error:', error);
