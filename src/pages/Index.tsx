@@ -7,6 +7,8 @@ import { PaymentsCalendar } from "@/components/PaymentsCalendar";
 import { EmployeeBonus } from "@/components/EmployeeBonus";
 import { AgentsManagement } from "@/components/AgentsManagement";
 import { PaymentsClientsDialog } from "@/components/PaymentsClientsDialog";
+import { TerminatedClientsHistory } from "@/components/TerminatedClientsHistory";
+import { SuspendedClientsHistory } from "@/components/SuspendedClientsHistory";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserPlus, TrendingUp, Calendar, DollarSign } from "lucide-react";
@@ -273,11 +275,13 @@ const Index = () => {
           </div>
 
           <Tabs defaultValue="clients" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="clients">Список клиентов</TabsTrigger>
               <TabsTrigger value="calendar">Календарь платежей</TabsTrigger>
               <TabsTrigger value="bonus">Премия</TabsTrigger>
               <TabsTrigger value="agents">Агенты</TabsTrigger>
+              <TabsTrigger value="terminated">Расторжения</TabsTrigger>
+              <TabsTrigger value="suspended">Приостановки</TabsTrigger>
               <TabsTrigger value="add-client">Добавить клиента</TabsTrigger>
             </TabsList>
             
@@ -295,6 +299,14 @@ const Index = () => {
 
             <TabsContent value="agents" className="space-y-6">
               <AgentsManagement />
+            </TabsContent>
+
+            <TabsContent value="terminated" className="space-y-6">
+              <TerminatedClientsHistory />
+            </TabsContent>
+
+            <TabsContent value="suspended" className="space-y-6">
+              <SuspendedClientsHistory />
             </TabsContent>
             
             <TabsContent value="add-client" className="space-y-6">

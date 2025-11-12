@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -70,6 +71,27 @@ export const SuspendedClientsHistory = () => {
     }).format(amount);
   };
 
+  const handleRestore = async (clientId: string, clientName: string) => {
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({
+          is_suspended: false,
+          suspended_at: null,
+          suspension_reason: null,
+        })
+        .eq("id", clientId);
+
+      if (error) throw error;
+
+      toast.success(`Клиент ${clientName} восстановлен`);
+      fetchSuspendedClients();
+    } catch (error: any) {
+      console.error("Error restoring client:", error);
+      toast.error("Ошибка при восстановлении клиента");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -100,6 +122,7 @@ export const SuspendedClientsHistory = () => {
                   <TableHead>Остаток</TableHead>
                   <TableHead>Дата приостановки</TableHead>
                   <TableHead>Причина</TableHead>
+                  <TableHead>Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -132,6 +155,16 @@ export const SuspendedClientsHistory = () => {
                       ) : (
                         "Не указана"
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRestore(client.id, client.full_name)}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Восстановить
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

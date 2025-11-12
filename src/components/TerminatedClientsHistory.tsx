@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
@@ -79,6 +80,34 @@ export const TerminatedClientsHistory = () => {
     }).format(amount);
   };
 
+  const handleRestore = async (clientId: string, clientName: string) => {
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({
+          is_terminated: false,
+          terminated_at: null,
+          termination_reason: null,
+        })
+        .eq("id", clientId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успешно",
+        description: `Клиент ${clientName} восстановлен`,
+      });
+      fetchTerminatedClients();
+    } catch (error: any) {
+      console.error("Error restoring client:", error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось восстановить клиента",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -116,6 +145,7 @@ export const TerminatedClientsHistory = () => {
                   <TableHead>Остаток</TableHead>
                   <TableHead>Дата расторжения</TableHead>
                   <TableHead>Причина</TableHead>
+                  <TableHead>Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -141,6 +171,16 @@ export const TerminatedClientsHistory = () => {
                           <Badge variant="outline">Не указана</Badge>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRestore(client.id, client.full_name)}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Восстановить
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
