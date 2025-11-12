@@ -153,6 +153,27 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
 
       if (error) throw error;
 
+      // Отправляем данные в pnltracker
+      try {
+        await supabase.functions.invoke('send-to-pnltracker', {
+          body: {
+            event_type: 'new_client',
+            client_name: formData.fullName,
+            contract_amount: contractAmount,
+            first_payment: parseFloat(formData.firstPayment),
+            date: formData.contractDate,
+            income_account: 'Расчетный счет',
+            company: 'Спасение',
+            user_id: user.id,
+            description: `Договор на сумму ${contractAmount.toFixed(2)} ₽`
+          }
+        });
+        console.log('Client data sent to pnltracker');
+      } catch (webhookError) {
+        console.error('Error sending to pnltracker:', webhookError);
+        // Не показываем ошибку пользователю, так как клиент уже создан
+      }
+
       toast({
         title: "Успешно",
         description: "Клиент успешно добавлен",

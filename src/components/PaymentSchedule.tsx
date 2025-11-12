@@ -177,6 +177,39 @@ export const PaymentSchedule = ({
     const newCompletedStatus = !payment.is_completed;
     const paymentAmount = payment.custom_amount ?? payment.original_amount;
 
+    // Если платеж отмечается как выполненный, отправляем данные в pnltracker
+    if (newCompletedStatus) {
+      try {
+        // Получаем информацию о клиенте
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('full_name')
+          .eq('id', clientId)
+          .single();
+
+        if (clientData) {
+          await supabase.functions.invoke('send-to-pnltracker', {
+            body: {
+              event_type: 'new_payment',
+              client_name: clientData.full_name,
+              amount: paymentAmount,
+              date: new Date().toISOString().split('T')[0],
+              income_account: payment.account || 'Расчетный счет',
+              company: 'Спасение',
+              user_id: user!.id,
+              description: payment.payment_type === 'first' 
+                ? 'Первый платеж' 
+                : `Ежемесячный платеж ${payment.payment_number}`
+            }
+          });
+          console.log('Payment data sent to pnltracker');
+        }
+      } catch (webhookError) {
+        console.error('Error sending to pnltracker:', webhookError);
+        // Не показываем ошибку пользователю
+      }
+    }
+
     // Обновляем статус платежа
     const { error: paymentError } = await supabase
       .from('payments')
