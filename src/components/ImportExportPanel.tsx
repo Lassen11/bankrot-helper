@@ -23,6 +23,9 @@ interface Client {
   payment_day: number;
   user_id: string;
   employee_id: string;
+  city?: string;
+  source?: string;
+  manager?: string;
   created_at: string;
   updated_at: string;
 }
@@ -353,13 +356,21 @@ export const ImportExportPanel = () => {
         
         try {
           // Отправляем данные клиента в pnltracker
+          const clientData: any = client;
           const { error: functionError } = await supabase.functions.invoke('send-to-pnltracker', {
             body: {
               event_type: 'new_client',
               client_name: client.full_name,
               contract_amount: client.contract_amount,
+              total_paid: client.total_paid,
+              installment_period: client.installment_period,
               first_payment: client.first_payment,
-              date: client.contract_date,
+              monthly_payment: client.monthly_payment,
+              manager: clientData.manager || '',
+              city: clientData.city || '',
+              source: clientData.source || '',
+              contract_date: client.contract_date,
+              payment_day: client.payment_day,
               income_account: 'Расчетный счет',
               company: 'Спасение',
               user_id: client.employee_id || user.id,
