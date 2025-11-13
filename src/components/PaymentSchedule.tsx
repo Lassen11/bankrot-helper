@@ -127,20 +127,17 @@ export const PaymentSchedule = ({
       payment_type: 'first'
     });
 
-    // Ежемесячные платежи - используем указанный день месяца
+    // Ежемесячные платежи - используем указанный день месяца из поля payment_day
     for (let i = 1; i <= installmentPeriod; i++) {
       const paymentDate = new Date(startDate);
       paymentDate.setMonth(startDate.getMonth() + i);
       
-      // Устанавливаем конкретный день месяца
-      paymentDate.setDate(paymentDay);
+      // Получаем последний день месяца для проверки
+      const lastDayOfMonth = new Date(paymentDate.getFullYear(), paymentDate.getMonth() + 1, 0).getDate();
       
-      // Если указанный день не существует в данном месяце (например, 31 февраля)
-      // то date автоматически скорректируется на последний день месяца
-      if (paymentDate.getDate() !== paymentDay) {
-        // Устанавливаем последний день месяца
-        paymentDate.setDate(0);
-      }
+      // Устанавливаем день платежа, но не больше последнего дня месяца
+      const actualPaymentDay = Math.min(paymentDay, lastDayOfMonth);
+      paymentDate.setDate(actualPaymentDay);
       
       paymentsToCreate.push({
         client_id: clientId,
