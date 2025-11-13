@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, Edit, CalendarIcon } from "lucide-react";
+import { Check, Edit, CalendarIcon, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -383,6 +383,102 @@ export const PaymentSchedule = ({
     return true; // Разрешаем отмечать платежи без обязательной загрузки чеков
   };
 
+  const regeneratePaymentSchedule = async () => {
+    if (!user || !clientId) return;
+    
+    // Подтверждение действия
+    if (!confirm('Вы уверены, что хотите пересоздать график платежей? Даты всех невыполненных платежей будут обновлены согласно полю "День платежа".')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Удаляем только невыполненные платежи
+      const { error: deleteError } = await supabase
+        .from('payments')
+        .delete()
+        .eq('client_id', clientId)
+        .eq('is_completed', false);
+
+      if (deleteError) {
+        console.error('Ошибка удаления платежей:', deleteError);
+        toast.error('Ошибка удаления старых платежей');
+        return;
+      }
+
+      // Получаем выполненные платежи для определения следующего порядкового номера
+      const { data: completedPayments } = await supabase
+        .from('payments')
+        .select('payment_number')
+        .eq('client_id', clientId)
+        .eq('is_completed', true)
+        .order('payment_number', { ascending: false })
+        .limit(1);
+
+      const lastCompletedNumber = completedPayments?.[0]?.payment_number ?? -1;
+      
+      // Создаем новые платежи начиная со следующего номера после последнего выполненного
+      const paymentsToCreate = [];
+      const startDate = new Date(contractDate);
+      const remainingPayments = installmentPeriod - (lastCompletedNumber >= 0 ? lastCompletedNumber : 0);
+
+      // Если первый платеж еще не выполнен, создаем его
+      if (lastCompletedNumber < 0) {
+        paymentsToCreate.push({
+          client_id: clientId,
+          user_id: user.id,
+          payment_number: 0,
+          original_amount: firstPayment,
+          due_date: startDate.toISOString().split('T')[0],
+          payment_type: 'first'
+        });
+      }
+
+      // Создаем ежемесячные платежи
+      for (let i = Math.max(1, lastCompletedNumber + 1); i <= installmentPeriod; i++) {
+        const paymentDate = new Date(startDate);
+        paymentDate.setMonth(startDate.getMonth() + i);
+        
+        // Получаем последний день месяца для проверки
+        const lastDayOfMonth = new Date(paymentDate.getFullYear(), paymentDate.getMonth() + 1, 0).getDate();
+        
+        // Устанавливаем день платежа, но не больше последнего дня месяца
+        const actualPaymentDay = Math.min(paymentDay, lastDayOfMonth);
+        paymentDate.setDate(actualPaymentDay);
+        
+        paymentsToCreate.push({
+          client_id: clientId,
+          user_id: user.id,
+          payment_number: i,
+          original_amount: monthlyPayment,
+          due_date: paymentDate.toISOString().split('T')[0],
+          payment_type: 'monthly'
+        });
+      }
+
+      const { data, error } = await supabase
+        .from('payments')
+        .insert(paymentsToCreate)
+        .select();
+
+      if (error) {
+        console.error('Ошибка создания платежей:', error);
+        toast.error('Ошибка создания графика платежей');
+        return;
+      }
+
+      // Загружаем все платежи заново (включая выполненные)
+      await initializePayments();
+      
+      toast.success('График платежей успешно обновлен');
+    } catch (error) {
+      console.error('Ошибка пересоздания графика:', error);
+      toast.error('Ошибка пересоздания графика платежей');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -403,7 +499,19 @@ export const PaymentSchedule = ({
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>График платежей</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>График платежей</CardTitle>
+          <Button 
+            onClick={regeneratePaymentSchedule}
+            variant="outline"
+            size="sm"
+            disabled={loading}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Пересоздать график
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3 max-h-64 overflow-y-auto">
