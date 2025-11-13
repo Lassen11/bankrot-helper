@@ -252,11 +252,15 @@ export const PaymentSchedule = ({
       newDepositPaid = Math.max(0, newDepositPaid - paymentAmount);
     }
 
+    // Рассчитываем новый остаток: сумма договора минус оплачено
+    const newRemainingAmount = Math.max(0, contractAmount - newTotalPaid);
+
     const { error: clientUpdateError } = await supabase
       .from('clients')
       .update({ 
         total_paid: newTotalPaid,
-        deposit_paid: newDepositPaid
+        deposit_paid: newDepositPaid,
+        remaining_amount: newRemainingAmount
       })
       .eq('id', clientId);
 

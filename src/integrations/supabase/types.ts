@@ -85,6 +85,7 @@ export type Database = {
       }
       clients: {
         Row: {
+          city: string | null
           contract_amount: number
           contract_date: string
           created_at: string | null
@@ -97,9 +98,11 @@ export type Database = {
           installment_period: number
           is_suspended: boolean
           is_terminated: boolean
+          manager: string | null
           monthly_payment: number
           payment_day: number
           remaining_amount: number
+          source: string | null
           suspended_at: string | null
           suspension_reason: string | null
           terminated_at: string | null
@@ -109,6 +112,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          city?: string | null
           contract_amount: number
           contract_date?: string
           created_at?: string | null
@@ -121,9 +125,11 @@ export type Database = {
           installment_period: number
           is_suspended?: boolean
           is_terminated?: boolean
+          manager?: string | null
           monthly_payment: number
           payment_day?: number
           remaining_amount?: number
+          source?: string | null
           suspended_at?: string | null
           suspension_reason?: string | null
           terminated_at?: string | null
@@ -133,6 +139,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          city?: string | null
           contract_amount?: number
           contract_date?: string
           created_at?: string | null
@@ -145,9 +152,11 @@ export type Database = {
           installment_period?: number
           is_suspended?: boolean
           is_terminated?: boolean
+          manager?: string | null
           monthly_payment?: number
           payment_day?: number
           remaining_amount?: number
+          source?: string | null
           suspended_at?: string | null
           suspension_reason?: string | null
           terminated_at?: string | null
@@ -359,6 +368,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_admin: { Args: { user_uuid?: string }; Returns: boolean }
+      recalculate_remaining_amounts: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "employee"
