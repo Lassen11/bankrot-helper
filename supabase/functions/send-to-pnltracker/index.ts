@@ -28,6 +28,41 @@ interface NewClientPayload {
   description?: string;
 }
 
+interface UpdateClientPayload {
+  event_type: 'update_client';
+  client_name: string;
+  contract_amount?: number;
+  total_paid?: number;
+  deposit_paid?: number;
+  deposit_target?: number;
+  remaining_amount?: number;
+  is_terminated?: boolean;
+  is_suspended?: boolean;
+  termination_reason?: string;
+  suspension_reason?: string;
+  company: string;
+  user_id: string;
+  date: string;
+  changes: {
+    field: string;
+    old_value: any;
+    new_value: any;
+  }[];
+}
+
+interface NewPaymentPayload {
+  event_type: 'new_payment';
+  client_name: string;
+  amount: number;
+  date: string;
+  income_account: string;
+  company: string;
+  user_id: string;
+  description?: string;
+}
+
+type WebhookPayload = NewClientPayload | UpdateClientPayload | NewPaymentPayload;
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -35,7 +70,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload: NewClientPayload = await req.json();
+    const payload: WebhookPayload = await req.json();
     
     console.log('Sending data to pnltracker:', payload);
 
