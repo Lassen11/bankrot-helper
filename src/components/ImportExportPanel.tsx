@@ -328,11 +328,10 @@ export const ImportExportPanel = () => {
         return;
       }
 
-      // Получаем всех клиентов
+      // Получаем всех клиентов (включая завершенных и приостановленных)
       const { data: clients, error: clientsError } = await supabase
         .from('clients')
         .select('*')
-        .or('is_terminated.eq.false,is_terminated.is.null')
         .order('created_at', { ascending: false });
 
       if (clientsError) throw clientsError;
