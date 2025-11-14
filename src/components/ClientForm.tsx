@@ -35,7 +35,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     remainingAmount: "",
     paymentDay: "1",
     contractDate: new Date().toISOString().split('T')[0], // Today's date as default
-    employeeId: ""
+    employeeId: "",
+    account: "Расчетный счет"
   });
 
   // Загружаем список сотрудников для админов
@@ -134,7 +135,9 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         employeeId = formData.employeeId;
       }
 
-      const { error } = await supabase
+      const firstPaymentAmount = parseFloat(formData.firstPayment);
+
+      const { data: clientData, error } = await supabase
         .from('clients')
         .insert([
           {
@@ -144,10 +147,10 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             manager: formData.manager,
             contract_amount: contractAmount,
             installment_period: parseInt(formData.installmentPeriod),
-            first_payment: parseFloat(formData.firstPayment),
+            first_payment: firstPaymentAmount,
             monthly_payment: monthlyPayment,
-            remaining_amount: remainingAmount,
-            total_paid: 0,
+            remaining_amount: remainingAmount - firstPaymentAmount,
+            total_paid: firstPaymentAmount,
             deposit_paid: 0,
             deposit_target: 50000,
             payment_day: parseInt(formData.paymentDay),
@@ -155,9 +158,34 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             user_id: user.id,
             employee_id: employeeId
           }
-        ]);
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Создаем первый платеж сразу как выполненный
+      if (clientData && firstPaymentAmount > 0) {
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .insert([
+            {
+              client_id: clientData.id,
+              user_id: user.id,
+              payment_number: 0,
+              original_amount: firstPaymentAmount,
+              due_date: formData.contractDate,
+              payment_type: 'first',
+              is_completed: true,
+              completed_at: new Date().toISOString(),
+              account: formData.account
+            }
+          ]);
+
+        if (paymentError) {
+          console.error('Error creating first payment:', paymentError);
+        }
+      }
 
       // Отправляем данные в pnltracker
       try {
@@ -197,7 +225,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         remainingAmount: "",
         paymentDay: "1",
         contractDate: new Date().toISOString().split('T')[0],
-        employeeId: ""
+        employeeId: "",
+        account: "Расчетный счет"
       });
 
       onClientAdded();
@@ -359,6 +388,25 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
               />
             </div>
 
+            <div>
+              <Label htmlFor="account">Счет для первого платежа</Label>
+              <Select 
+                value={formData.account} 
+                onValueChange={(value) => handleInputChange("account", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите счет" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Расчетный счет">Расчетный счет</SelectItem>
+                  <SelectItem value="Касса">Касса</SelectItem>
+                  <SelectItem value="Карта">Карта</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="paymentDay">День ежемесячного платежа</Label>
               <Input
