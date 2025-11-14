@@ -5,9 +5,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import React from "react";
+
+const ACCOUNT_OPTIONS = [
+  "Зайнаб карта",
+  "Касса офис Диана",
+  "Мариана Карта - депозит",
+  "Карта Visa/Т-Банк (КИ)",
+  "Наличные",
+  "Сейф (КИ)",
+  "Расчетный счет"
+];
 
 interface ClientFormProps {
   onClientAdded: () => void;
@@ -19,7 +29,6 @@ interface Employee {
 }
 
 export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
-  const { toast } = useToast();
   const { isAdmin } = useUserRole();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -121,11 +130,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        toast({
-          title: "Ошибка",
-          description: "Необходимо войти в систему",
-          variant: "destructive"
-        });
+        toast.error("Необходимо войти в систему");
         return;
       }
 
@@ -136,6 +141,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
       }
 
       const firstPaymentAmount = parseFloat(formData.firstPayment);
+      const installmentPeriod = parseInt(formData.installmentPeriod);
 
       const { data: clientData, error } = await supabase
         .from('clients')
@@ -146,10 +152,10 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             source: formData.source,
             manager: formData.manager,
             contract_amount: contractAmount,
-            installment_period: parseInt(formData.installmentPeriod),
+            installment_period: installmentPeriod,
             first_payment: firstPaymentAmount,
             monthly_payment: monthlyPayment,
-            remaining_amount: remainingAmount - firstPaymentAmount,
+            remaining_amount: remainingAmount,
             total_paid: firstPaymentAmount,
             deposit_paid: 0,
             deposit_target: 50000,
@@ -164,26 +170,54 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
 
       if (error) throw error;
 
-      // Создаем первый платеж сразу как выполненный
-      if (clientData && firstPaymentAmount > 0) {
+      // Создаем полный график платежей
+      if (clientData) {
+        const paymentsToCreate = [];
+        const startDate = new Date(formData.contractDate);
+        const paymentDay = parseInt(formData.paymentDay);
+
+        // Создаем первый платеж сразу как выполненный
+        if (firstPaymentAmount > 0) {
+          paymentsToCreate.push({
+            client_id: clientData.id,
+            user_id: user.id,
+            payment_number: 0,
+            original_amount: firstPaymentAmount,
+            due_date: formData.contractDate,
+            payment_type: 'first',
+            is_completed: true,
+            completed_at: new Date().toISOString(),
+            account: formData.account
+          });
+        }
+
+        // Создаем ежемесячные платежи
+        for (let i = 1; i <= installmentPeriod; i++) {
+          const paymentDate = new Date(startDate);
+          paymentDate.setMonth(startDate.getMonth() + i);
+          
+          const lastDayOfMonth = new Date(paymentDate.getFullYear(), paymentDate.getMonth() + 1, 0).getDate();
+          const actualPaymentDay = Math.min(paymentDay, lastDayOfMonth);
+          
+          paymentDate.setDate(actualPaymentDay);
+
+          paymentsToCreate.push({
+            client_id: clientData.id,
+            user_id: user.id,
+            payment_number: i,
+            original_amount: monthlyPayment,
+            due_date: paymentDate.toISOString().split('T')[0],
+            payment_type: 'monthly'
+          });
+        }
+
         const { error: paymentError } = await supabase
           .from('payments')
-          .insert([
-            {
-              client_id: clientData.id,
-              user_id: user.id,
-              payment_number: 0,
-              original_amount: firstPaymentAmount,
-              due_date: formData.contractDate,
-              payment_type: 'first',
-              is_completed: true,
-              completed_at: new Date().toISOString(),
-              account: formData.account
-            }
-          ]);
+          .insert(paymentsToCreate);
 
         if (paymentError) {
-          console.error('Error creating first payment:', paymentError);
+          console.error('Error creating payment schedule:', paymentError);
+          toast.error('Ошибка создания графика платежей');
         }
       }
 
@@ -208,10 +242,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         // Не показываем ошибку пользователю, так как клиент уже создан
       }
 
-      toast({
-        title: "Успешно",
-        description: "Клиент успешно добавлен",
-      });
+      toast.success("Клиент успешно добавлен");
 
       setFormData({
         fullName: "",
@@ -231,11 +262,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
 
       onClientAdded();
     } catch (error: any) {
-      toast({
-        title: "Ошибка",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(error.message || "Произошла ошибка при создании клиента");
     } finally {
       setIsSubmitting(false);
     }
@@ -398,9 +425,11 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
                   <SelectValue placeholder="Выберите счет" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Расчетный счет">Расчетный счет</SelectItem>
-                  <SelectItem value="Касса">Касса</SelectItem>
-                  <SelectItem value="Карта">Карта</SelectItem>
+                  {ACCOUNT_OPTIONS.map((account) => (
+                    <SelectItem key={account} value={account}>
+                      {account}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
