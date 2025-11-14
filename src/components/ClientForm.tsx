@@ -156,7 +156,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             first_payment: firstPaymentAmount,
             monthly_payment: monthlyPayment,
             remaining_amount: remainingAmount,
-            total_paid: firstPaymentAmount,
+            total_paid: 0,
             deposit_paid: 0,
             deposit_target: 50000,
             payment_day: parseInt(formData.paymentDay),
