@@ -61,7 +61,15 @@ interface NewPaymentPayload {
   description?: string;
 }
 
-type WebhookPayload = NewClientPayload | UpdateClientPayload | NewPaymentPayload;
+interface SyncSummaryPayload {
+  event_type: 'sync_summary';
+  total_payments: number;
+  company: string;
+  user_id: string;
+  date: string;
+}
+
+type WebhookPayload = NewClientPayload | UpdateClientPayload | NewPaymentPayload | SyncSummaryPayload;
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
