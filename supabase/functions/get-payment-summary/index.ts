@@ -30,6 +30,13 @@ Deno.serve(async (req) => {
     const expectedApiKey = Deno.env.get('PNLTRACKER_API_KEY');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
+    console.log('API Key validation - Has expectedApiKey:', !!expectedApiKey);
+    console.log('API Key validation - Has supabaseAnonKey:', !!supabaseAnonKey);
+    console.log('API Key validation - Has incoming apiKey:', !!apiKey);
+    console.log('API Key validation - apiKey length:', apiKey?.length);
+    console.log('API Key validation - expectedApiKey length:', expectedApiKey?.length);
+    console.log('API Key validation - supabaseAnonKey length:', supabaseAnonKey?.length);
+
     if (!expectedApiKey && !supabaseAnonKey) {
       console.error('PNLTRACKER_API_KEY and SUPABASE_ANON_KEY are not set in Supabase secrets');
       return new Response(
@@ -52,12 +59,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    const isValidApiKey =
-      (expectedApiKey && apiKey === expectedApiKey) ||
-      (supabaseAnonKey && apiKey === supabaseAnonKey);
+    const matchesExpectedKey = expectedApiKey && apiKey === expectedApiKey;
+    const matchesSupabaseKey = supabaseAnonKey && apiKey === supabaseAnonKey;
+    
+    console.log('API Key validation - Matches expectedApiKey:', matchesExpectedKey);
+    console.log('API Key validation - Matches supabaseAnonKey:', matchesSupabaseKey);
+
+    const isValidApiKey = matchesExpectedKey || matchesSupabaseKey;
 
     if (!isValidApiKey) {
       console.error('Invalid API key provided to get-payment-summary');
+      console.error('First 10 chars of incoming key:', apiKey?.substring(0, 10));
+      console.error('First 10 chars of expected key:', expectedApiKey?.substring(0, 10));
+      console.error('First 10 chars of supabase key:', supabaseAnonKey?.substring(0, 10));
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized: invalid API key' }),
         {
