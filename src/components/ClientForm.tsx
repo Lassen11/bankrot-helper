@@ -177,7 +177,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         const startDate = new Date(formData.contractDate);
         const paymentDay = parseInt(formData.paymentDay);
 
-        // Создаем первый платеж сразу как выполненный
+        // Создаем авансовый платеж сразу как выполненный
         if (firstPaymentAmount > 0) {
           paymentsToCreate.push({
             client_id: clientData.id,
@@ -185,7 +185,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             payment_number: 0,
             original_amount: firstPaymentAmount,
             due_date: formData.firstPaymentDate,
-            payment_type: 'first',
+            payment_type: 'advance',
             is_completed: true,
             completed_at: formData.firstPaymentDate,
             account: formData.account

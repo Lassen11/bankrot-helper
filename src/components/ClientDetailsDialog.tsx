@@ -319,14 +319,14 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       const paymentsToCreate = [];
       const startDate = new Date(editedContractDate);
       
-      // Первый платеж
+      // Авансовый платеж
       paymentsToCreate.push({
         client_id: clientId,
         user_id: user.id,
         payment_number: 0,
         original_amount: editedClient.first_payment || client.first_payment,
         due_date: startDate.toISOString().split('T')[0],
-        payment_type: 'first'
+        payment_type: 'advance'
       });
 
       // Ежемесячные платежи
@@ -817,7 +817,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                           <p className="font-medium">
                             Платеж #{payment.payment_number} 
                             <span className="text-sm text-muted-foreground ml-2">
-                              ({payment.payment_type === 'first' ? 'Первый взнос' : 
+                              ({payment.payment_type === 'advance' ? 'Авансовый' : 
                                 payment.payment_type === 'deposit' ? 'Депозит' : 'Ежемесячный'})
                             </span>
                           </p>
