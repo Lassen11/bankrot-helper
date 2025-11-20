@@ -25,61 +25,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify API key
-    const apiKey = req.headers.get('x-api-key');
-    const expectedApiKey = Deno.env.get('PNLTRACKER_API_KEY');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-
-    console.log('API Key validation - Has expectedApiKey:', !!expectedApiKey);
-    console.log('API Key validation - Has supabaseAnonKey:', !!supabaseAnonKey);
-    console.log('API Key validation - Has incoming apiKey:', !!apiKey);
-    console.log('API Key validation - apiKey length:', apiKey?.length);
-    console.log('API Key validation - expectedApiKey length:', expectedApiKey?.length);
-    console.log('API Key validation - supabaseAnonKey length:', supabaseAnonKey?.length);
-
-    if (!expectedApiKey && !supabaseAnonKey) {
-      console.error('PNLTRACKER_API_KEY and SUPABASE_ANON_KEY are not set in Supabase secrets');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Server configuration error: missing API keys' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      );
-    }
-
-    if (!apiKey) {
-      console.error('Missing x-api-key header on request to get-payment-summary');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized: missing API key' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      );
-    }
-
-    const matchesExpectedKey = expectedApiKey && apiKey === expectedApiKey;
-    const matchesSupabaseKey = supabaseAnonKey && apiKey === supabaseAnonKey;
-    
-    console.log('API Key validation - Matches expectedApiKey:', matchesExpectedKey);
-    console.log('API Key validation - Matches supabaseAnonKey:', matchesSupabaseKey);
-
-    const isValidApiKey = matchesExpectedKey || matchesSupabaseKey;
-
-    if (!isValidApiKey) {
-      console.error('Invalid API key provided to get-payment-summary');
-      console.error('First 10 chars of incoming key:', apiKey?.substring(0, 10));
-      console.error('First 10 chars of expected key:', expectedApiKey?.substring(0, 10));
-      console.error('First 10 chars of supabase key:', supabaseAnonKey?.substring(0, 10));
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized: invalid API key' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      );
-    }
+    console.log('get-payment-summary called', { 
+      hasEmployeeId: !!new URL(req.url).searchParams.get('employee_id')
+    });
 
     // Initialize Supabase client with service role key for admin access
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
