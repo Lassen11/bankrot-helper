@@ -45,10 +45,10 @@ Deno.serve(async (req) => {
     const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-    // Get active clients
+    // Get active clients with monthly_payment
     let clientsQuery = supabase
       .from('clients')
-      .select('id, user_id')
+      .select('id, user_id, monthly_payment')
       .eq('is_terminated', false)
       .eq('is_suspended', false);
 
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
-      .select('is_completed, original_amount, custom_amount')
+      .select('is_completed, original_amount, custom_amount, client_id')
       .gte('due_date', startDate.toISOString().split('T')[0])
       .lte('due_date', endDate.toISOString().split('T')[0])
       .neq('payment_number', 0) // Exclude advance payments
@@ -100,24 +100,42 @@ Deno.serve(async (req) => {
       throw paymentsError;
     }
 
-    // Calculate totals
-    let totalPaymentsSum = 0;
-    let completedPaymentsSum = 0;
-    let totalPaymentsCount = 0;
-    let completedPaymentsCount = 0;
+    // Create Map for fast access to monthly_payment
+    const clientsMap = new Map(clients.map(c => [c.id, c.monthly_payment]));
+
+    // Calculate unique clients with payments
+    const uniqueClientsWithPayments = new Set<string>();
+    const clientsWithCompletedPayments = new Set<string>();
 
     if (payments) {
       payments.forEach(payment => {
-        const amount = payment.custom_amount || payment.original_amount;
-        totalPaymentsSum += amount;
-        totalPaymentsCount++;
-
+        uniqueClientsWithPayments.add(payment.client_id);
         if (payment.is_completed) {
-          completedPaymentsSum += amount;
-          completedPaymentsCount++;
+          clientsWithCompletedPayments.add(payment.client_id);
         }
       });
     }
+
+    // Sum monthly_payment for planned sum (for unique clients)
+    let totalPaymentsSum = 0;
+    uniqueClientsWithPayments.forEach(clientId => {
+      const monthlyPayment = clientsMap.get(clientId) || 0;
+      totalPaymentsSum += monthlyPayment;
+    });
+
+    // Sum actual payments (custom_amount or original_amount) for completed
+    let completedPaymentsSum = 0;
+    if (payments) {
+      payments.forEach(payment => {
+        if (payment.is_completed) {
+          const amount = payment.custom_amount ?? payment.original_amount;
+          completedPaymentsSum += amount;
+        }
+      });
+    }
+
+    const totalPaymentsCount = uniqueClientsWithPayments.size;
+    const completedPaymentsCount = clientsWithCompletedPayments.size;
 
     const response: PaymentSummaryResponse = {
       success: true,
