@@ -117,16 +117,7 @@ export const PaymentSchedule = ({
     const paymentsToCreate = [];
     const startDate = new Date(contractDate);
     
-    // Первый платеж - остается без изменений
-    paymentsToCreate.push({
-      client_id: clientId,
-      user_id: user.id,
-      payment_number: 0,
-      original_amount: firstPayment,
-      due_date: startDate.toISOString().split('T')[0],
-      payment_type: 'first'
-    });
-
+    // Первый платеж уже создан при создании клиента, начинаем с ежемесячных платежей
     // Ежемесячные платежи - используем указанный день месяца из поля payment_day
     for (let i = 1; i <= installmentPeriod; i++) {
       const paymentDate = new Date(startDate);

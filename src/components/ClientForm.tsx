@@ -40,6 +40,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
     contractAmount: "",
     installmentPeriod: "",
     firstPayment: "",
+    firstPaymentDate: new Date().toISOString().split('T')[0], // Today's date as default
     monthlyPayment: "",
     remainingAmount: "",
     paymentDay: "1",
@@ -155,10 +156,10 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             installment_period: installmentPeriod,
             first_payment: firstPaymentAmount,
             monthly_payment: monthlyPayment,
-            remaining_amount: remainingAmount,
-            total_paid: 0,
-            deposit_paid: 0,
-            deposit_target: 50000,
+            remaining_amount: remainingAmount - firstPaymentAmount,
+            total_paid: firstPaymentAmount,
+            deposit_paid: firstPaymentAmount,
+            deposit_target: 70000,
             payment_day: parseInt(formData.paymentDay),
             contract_date: formData.contractDate,
             user_id: user.id,
@@ -183,10 +184,10 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             user_id: user.id,
             payment_number: 0,
             original_amount: firstPaymentAmount,
-            due_date: formData.contractDate,
+            due_date: formData.firstPaymentDate,
             payment_type: 'first',
             is_completed: true,
-            completed_at: new Date().toISOString(),
+            completed_at: formData.firstPaymentDate,
             account: formData.account
           });
         }
@@ -252,6 +253,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         contractAmount: "",
         installmentPeriod: "",
         firstPayment: "",
+        firstPaymentDate: new Date().toISOString().split('T')[0],
         monthlyPayment: "",
         remainingAmount: "",
         paymentDay: "1",
@@ -416,23 +418,34 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             </div>
 
             <div>
-              <Label htmlFor="account">Счет для первого платежа</Label>
-              <Select 
-                value={formData.account} 
-                onValueChange={(value) => handleInputChange("account", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите счет" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACCOUNT_OPTIONS.map((account) => (
-                    <SelectItem key={account} value={account}>
-                      {account}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="firstPaymentDate">Дата первого платежа</Label>
+              <Input
+                id="firstPaymentDate"
+                type="date"
+                value={formData.firstPaymentDate}
+                onChange={(e) => handleInputChange("firstPaymentDate", e.target.value)}
+                required
+              />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="account">Счет для первого платежа</Label>
+            <Select 
+              value={formData.account} 
+              onValueChange={(value) => handleInputChange("account", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите счет" />
+              </SelectTrigger>
+              <SelectContent>
+                {ACCOUNT_OPTIONS.map((account) => (
+                  <SelectItem key={account} value={account}>
+                    {account}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
