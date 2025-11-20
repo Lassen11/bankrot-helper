@@ -18,6 +18,9 @@ import { Textarea } from "@/components/ui/textarea";
 interface Client {
   id: string;
   full_name: string;
+  city: string;
+  source: string;
+  manager: string;
   contract_amount: number;
   total_paid: number;
   remaining_amount: number;
@@ -193,6 +196,9 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     if (!client) return;
     setEditedClient({
       full_name: client.full_name,
+      city: client.city,
+      source: client.source,
+      manager: client.manager,
       contract_amount: client.contract_amount,
       first_payment: client.first_payment,
       monthly_payment: client.monthly_payment,
@@ -698,6 +704,47 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                       />
                     ) : (
                       <p className="font-medium">{formatAmount(client.deposit_target || 0)}</p>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Город</p>
+                    {isEditingClient ? (
+                      <Input
+                        value={editedClient.city || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, city: e.target.value })}
+                        placeholder="Город"
+                      />
+                    ) : (
+                      <p className="font-medium">{client.city || 'Не указан'}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Источник</p>
+                    {isEditingClient ? (
+                      <Input
+                        value={editedClient.source || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, source: e.target.value })}
+                        placeholder="Источник"
+                      />
+                    ) : (
+                      <p className="font-medium">{client.source || 'Не указан'}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Менеджер</p>
+                    {isEditingClient ? (
+                      <Input
+                        value={editedClient.manager || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, manager: e.target.value })}
+                        placeholder="Менеджер"
+                      />
+                    ) : (
+                      <p className="font-medium">{client.manager || 'Не указан'}</p>
                     )}
                   </div>
                 </div>
