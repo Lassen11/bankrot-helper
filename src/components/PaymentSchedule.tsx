@@ -117,7 +117,7 @@ export const PaymentSchedule = ({
     const paymentsToCreate = [];
     const startDate = new Date(contractDate);
     
-    // Первый платеж уже создан при создании клиента, начинаем с ежемесячных платежей
+    // Авансовый платеж уже создан при создании клиента, начинаем с ежемесячных платежей
     // Ежемесячные платежи - используем указанный день месяца из поля payment_day
     for (let i = 1; i <= installmentPeriod; i++) {
       const paymentDate = new Date(startDate);
@@ -185,8 +185,8 @@ export const PaymentSchedule = ({
               income_account: payment.account || 'Расчетный счет',
               company: 'Спасение',
               user_id: user!.id,
-              description: payment.payment_type === 'first' 
-                ? 'Первый платеж' 
+              description: payment.payment_type === 'advance' 
+                ? 'Авансовый платеж' 
                 : `Ежемесячный платеж ${payment.payment_number}`
             }
           });
@@ -417,7 +417,7 @@ export const PaymentSchedule = ({
       const startDate = new Date(contractDate);
       const remainingPayments = installmentPeriod - (lastCompletedNumber >= 0 ? lastCompletedNumber : 0);
 
-      // Если первый платеж еще не выполнен, создаем его
+      // Если авансовый платеж еще не выполнен, создаем его
       if (lastCompletedNumber < 0) {
         paymentsToCreate.push({
           client_id: clientId,
@@ -425,7 +425,7 @@ export const PaymentSchedule = ({
           payment_number: 0,
           original_amount: firstPayment,
           due_date: startDate.toISOString().split('T')[0],
-          payment_type: 'first'
+          payment_type: 'advance'
         });
       }
 
@@ -512,7 +512,7 @@ export const PaymentSchedule = ({
         <div className="space-y-3 max-h-64 overflow-y-auto">
           {payments.map((payment) => {
             const currentAmount = payment.custom_amount ?? payment.original_amount;
-            const paymentType = payment.payment_type === 'first' ? 'Первый платеж' : `Платеж ${payment.payment_number}`;
+            const paymentType = payment.payment_type === 'advance' ? 'Авансовый платеж' : `Платеж ${payment.payment_number}`;
             const isEditing = editingPayment === payment.id;
             
             return (
