@@ -28,15 +28,37 @@ Deno.serve(async (req) => {
     // Verify API key
     const apiKey = req.headers.get('x-api-key');
     const expectedApiKey = Deno.env.get('PNLTRACKER_API_KEY');
-    
-    if (!apiKey || apiKey !== expectedApiKey) {
-      console.error('Invalid or missing API key');
+
+    if (!expectedApiKey) {
+      console.error('PNLTRACKER_API_KEY environment variable is not set in Supabase secrets');
       return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ success: false, error: 'Server configuration error: missing API key' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
+    if (!apiKey) {
+      console.error('Missing x-api-key header on request to get-payment-summary');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized: missing API key' }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
+    if (apiKey !== expectedApiKey) {
+      console.error('Invalid API key provided to get-payment-summary');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized: invalid API key' }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
       );
     }
 
