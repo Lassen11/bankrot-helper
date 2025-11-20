@@ -156,7 +156,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             installment_period: installmentPeriod,
             first_payment: firstPaymentAmount,
             monthly_payment: monthlyPayment,
-            remaining_amount: remainingAmount - firstPaymentAmount,
+            remaining_amount: contractAmount - firstPaymentAmount,
             total_paid: firstPaymentAmount,
             deposit_paid: firstPaymentAmount,
             deposit_target: 70000,
