@@ -404,7 +404,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="firstPayment">Первый платеж (₽)</Label>
+              <Label htmlFor="firstPayment">Авансовый платеж (₽)</Label>
               <Input
                 id="firstPayment"
                 type="number"
@@ -418,7 +418,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             </div>
 
             <div>
-              <Label htmlFor="firstPaymentDate">Дата первого платежа</Label>
+              <Label htmlFor="firstPaymentDate">Дата авансового платежа</Label>
               <Input
                 id="firstPaymentDate"
                 type="date"
@@ -430,8 +430,8 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
           </div>
 
           <div>
-            <Label htmlFor="account">Счет для первого платежа</Label>
-            <Select 
+            <Label htmlFor="account">Счет для авансового платежа</Label>
+            <Select
               value={formData.account} 
               onValueChange={(value) => handleInputChange("account", value)}
             >
