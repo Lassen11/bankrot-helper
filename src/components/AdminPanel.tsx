@@ -129,14 +129,17 @@ export const AdminPanel = () => {
       }).length || 0;
 
       // Получаем платежи за выбранный месяц
-      const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
-      const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
-      
+      const year = parseInt(selectedYear);
+      const month = parseInt(selectedMonth);
+      const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDay = new Date(year, month, 0).getDate();
+      const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+
       let paymentsQuery = supabase
         .from('payments')
         .select('is_completed, client_id, original_amount, custom_amount')
-        .gte('due_date', startDate.toISOString().split('T')[0])
-        .lte('due_date', endDate.toISOString().split('T')[0])
+        .gte('due_date', startDateStr)
+        .lte('due_date', endDateStr)
         .neq('payment_number', 0);
 
       // Фильтруем по клиентам если выбран сотрудник

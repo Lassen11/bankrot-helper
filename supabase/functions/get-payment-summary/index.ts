@@ -40,10 +40,13 @@ Deno.serve(async (req) => {
 
     console.log('Fetching payment summary', employeeId ? `for employee: ${employeeId}` : 'for all employees');
 
-    // Get current month date range
+    // Get current month date range (use date strings to avoid timezone issues)
     const currentDate = new Date();
-    const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
 
     // Get active clients with monthly_payment
     let clientsQuery = supabase
@@ -90,8 +93,8 @@ Deno.serve(async (req) => {
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
       .select('is_completed, original_amount, custom_amount, client_id')
-      .gte('due_date', startDate.toISOString().split('T')[0])
-      .lte('due_date', endDate.toISOString().split('T')[0])
+      .gte('due_date', startDateStr)
+      .lte('due_date', endDateStr)
       .neq('payment_number', 0) // Exclude advance payments
       .in('client_id', clientIds);
 
