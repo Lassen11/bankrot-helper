@@ -29,6 +29,8 @@ interface AdminMetrics {
   totalClients: number;
   totalContractAmount: number;
   activeCases: number;
+  newClientsThisMonth: number;
+  completedClientsThisMonth: number;
   totalPaymentsCount: number;
   completedPaymentsCount: number;
   totalPaymentsSum: number;
@@ -68,6 +70,8 @@ export const AdminPanel = () => {
     totalClients: 0,
     totalContractAmount: 0,
     activeCases: 0,
+    newClientsThisMonth: 0,
+    completedClientsThisMonth: 0,
     totalPaymentsCount: 0,
     completedPaymentsCount: 0,
     totalPaymentsSum: 0,
@@ -128,13 +132,60 @@ export const AdminPanel = () => {
         return totalPaid < contractAmount;
       }).length || 0;
 
-      // Получаем платежи за выбранный месяц
+      // Получаем новых клиентов за текущий месяц
       const year = parseInt(selectedYear);
       const month = parseInt(selectedMonth);
       const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDay = new Date(year, month, 0).getDate();
       const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
 
+      let newClientsQuery = supabase
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr + 'T23:59:59.999Z');
+
+      if (selectedEmployee !== 'all') {
+        newClientsQuery = newClientsQuery.eq('user_id', selectedEmployee);
+      }
+
+      const { count: newClientsCount } = await newClientsQuery;
+
+      // Получаем завершенных клиентов за текущий месяц
+      // Клиент считается завершенным если total_paid >= contract_amount и последний платеж был в этом месяце
+      let completedClientsQuery = supabase
+        .from('clients')
+        .select('id, total_paid, contract_amount')
+        .gte('total_paid', 'contract_amount')
+        .eq('is_terminated', false)
+        .eq('is_suspended', false);
+
+      if (selectedEmployee !== 'all') {
+        completedClientsQuery = completedClientsQuery.eq('user_id', selectedEmployee);
+      }
+
+      const { data: potentiallyCompletedClients } = await completedClientsQuery;
+
+      // Проверяем, какие из завершенных клиентов завершились именно в этом месяце
+      let completedThisMonthCount = 0;
+      if (potentiallyCompletedClients && potentiallyCompletedClients.length > 0) {
+        const clientIds = potentiallyCompletedClients.map(c => c.id);
+        
+        // Получаем последний завершенный платеж для каждого клиента
+        const { data: lastPayments } = await supabase
+          .from('payments')
+          .select('client_id, completed_at')
+          .in('client_id', clientIds)
+          .eq('is_completed', true)
+          .gte('completed_at', startDateStr)
+          .lte('completed_at', endDateStr + 'T23:59:59.999Z')
+          .order('completed_at', { ascending: false });
+
+        const uniqueCompletedClients = new Set(lastPayments?.map(p => p.client_id) || []);
+        completedThisMonthCount = uniqueCompletedClients.size;
+      }
+
+      // Получаем платежи за выбранный месяц
       let paymentsQuery = supabase
         .from('payments')
         .select('is_completed, client_id, original_amount, custom_amount')
@@ -190,6 +241,8 @@ export const AdminPanel = () => {
         totalClients,
         totalContractAmount,
         activeCases,
+        newClientsThisMonth: newClientsCount || 0,
+        completedClientsThisMonth: completedThisMonthCount,
         totalPaymentsCount,
         completedPaymentsCount,
         totalPaymentsSum,
@@ -572,6 +625,42 @@ export const AdminPanel = () => {
                     </p>
                     <p className="text-2xl font-bold text-orange-600">
                       {metrics.loading ? '-' : metrics.activeCases}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-cyan-500/10 rounded-full">
+                    <UserPlus className="h-6 w-6 text-cyan-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Новых клиентов за месяц
+                    </p>
+                    <p className="text-2xl font-bold text-cyan-600">
+                      {metrics.loading ? '-' : metrics.newClientsThisMonth}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-emerald-500/10 rounded-full">
+                    <TrendingUp className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Завершенных дел за месяц
+                    </p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {metrics.loading ? '-' : metrics.completedClientsThisMonth}
                     </p>
                   </div>
                 </div>
