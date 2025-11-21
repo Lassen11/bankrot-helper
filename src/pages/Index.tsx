@@ -74,17 +74,16 @@ const Index = () => {
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        let paymentsQuery = supabase
+        // Всегда фильтруем платежи по активным клиентам (исключая terminated и suspended)
+        const clientIds = clients.map(c => c.id);
+        
+        const paymentsQuery = supabase
           .from('payments')
           .select('is_completed, client_id, original_amount, custom_amount')
           .gte('due_date', startDate.toISOString().split('T')[0])
           .lte('due_date', endDate.toISOString().split('T')[0])
-          .neq('payment_number', 0);
-
-        if (!isAdmin) {
-          const clientIds = clients.map(c => c.id);
-          paymentsQuery = paymentsQuery.in('client_id', clientIds);
-        }
+          .neq('payment_number', 0)
+          .in('client_id', clientIds);
 
         const { data: payments, error: paymentsError } = await paymentsQuery;
 
