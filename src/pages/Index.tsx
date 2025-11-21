@@ -71,8 +71,11 @@ const Index = () => {
 
         // Получаем платежи за текущий месяц для клиентов сотрудника
         const currentDate = new Date();
-        const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+        const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+        const endDay = new Date(year, month, 0).getDate();
+        const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
 
         // Всегда фильтруем платежи по активным клиентам (исключая terminated и suspended)
         const clientIds = clients.map(c => c.id);
@@ -80,8 +83,8 @@ const Index = () => {
         const paymentsQuery = supabase
           .from('payments')
           .select('is_completed, client_id, original_amount, custom_amount')
-          .gte('due_date', startDate.toISOString().split('T')[0])
-          .lte('due_date', endDate.toISOString().split('T')[0])
+          .gte('due_date', startDateStr)
+          .lte('due_date', endDateStr)
           .neq('payment_number', 0)
           .in('client_id', clientIds);
 
