@@ -30,7 +30,9 @@ interface AdminMetrics {
   totalContractAmount: number;
   activeCases: number;
   newClientsThisMonth: number;
+  newClientsMonthlyPaymentSum: number;
   completedClientsThisMonth: number;
+  completedClientsMonthlyPaymentSum: number;
   totalPaymentsCount: number;
   completedPaymentsCount: number;
   totalPaymentsSum: number;
@@ -71,7 +73,9 @@ export const AdminPanel = () => {
     totalContractAmount: 0,
     activeCases: 0,
     newClientsThisMonth: 0,
+    newClientsMonthlyPaymentSum: 0,
     completedClientsThisMonth: 0,
+    completedClientsMonthlyPaymentSum: 0,
     totalPaymentsCount: 0,
     completedPaymentsCount: 0,
     totalPaymentsSum: 0,
@@ -141,7 +145,7 @@ export const AdminPanel = () => {
 
       let newClientsQuery = supabase
         .from('clients')
-        .select('id', { count: 'exact', head: true })
+        .select('id, monthly_payment')
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr + 'T23:59:59.999Z');
 
@@ -149,13 +153,15 @@ export const AdminPanel = () => {
         newClientsQuery = newClientsQuery.eq('user_id', selectedEmployee);
       }
 
-      const { count: newClientsCount } = await newClientsQuery;
+      const { data: newClients } = await newClientsQuery;
+      const newClientsCount = newClients?.length || 0;
+      const newClientsMonthlyPaymentSum = newClients?.reduce((sum, client) => sum + (client.monthly_payment || 0), 0) || 0;
 
       // Получаем завершенных клиентов за текущий месяц
       // Клиент считается завершенным если total_paid >= contract_amount и последний платеж был в этом месяце
       let completedClientsQuery = supabase
         .from('clients')
-        .select('id, total_paid, contract_amount')
+        .select('id, total_paid, contract_amount, monthly_payment')
         .gte('total_paid', 'contract_amount')
         .eq('is_terminated', false)
         .eq('is_suspended', false);
@@ -168,6 +174,7 @@ export const AdminPanel = () => {
 
       // Проверяем, какие из завершенных клиентов завершились именно в этом месяце
       let completedThisMonthCount = 0;
+      let completedClientsMonthlyPaymentSum = 0;
       if (potentiallyCompletedClients && potentiallyCompletedClients.length > 0) {
         const clientIds = potentiallyCompletedClients.map(c => c.id);
         
@@ -183,6 +190,11 @@ export const AdminPanel = () => {
 
         const uniqueCompletedClients = new Set(lastPayments?.map(p => p.client_id) || []);
         completedThisMonthCount = uniqueCompletedClients.size;
+        
+        // Суммируем monthly_payment только для завершенных в этом месяце клиентов
+        completedClientsMonthlyPaymentSum = potentiallyCompletedClients
+          .filter(client => uniqueCompletedClients.has(client.id))
+          .reduce((sum, client) => sum + (client.monthly_payment || 0), 0);
       }
 
       // Получаем платежи за выбранный месяц
@@ -242,7 +254,9 @@ export const AdminPanel = () => {
         totalContractAmount,
         activeCases,
         newClientsThisMonth: newClientsCount || 0,
+        newClientsMonthlyPaymentSum,
         completedClientsThisMonth: completedThisMonthCount,
+        completedClientsMonthlyPaymentSum,
         totalPaymentsCount,
         completedPaymentsCount,
         totalPaymentsSum,
@@ -642,7 +656,7 @@ export const AdminPanel = () => {
                       Новых клиентов за месяц
                     </p>
                     <p className="text-2xl font-bold text-cyan-600">
-                      {metrics.loading ? '-' : metrics.newClientsThisMonth}
+                      {metrics.loading ? '-' : `${metrics.newClientsThisMonth} / ${metrics.newClientsMonthlyPaymentSum.toLocaleString('ru-RU')}`}
                     </p>
                   </div>
                 </div>
@@ -660,7 +674,7 @@ export const AdminPanel = () => {
                       Завершенных дел за месяц
                     </p>
                     <p className="text-2xl font-bold text-emerald-600">
-                      {metrics.loading ? '-' : metrics.completedClientsThisMonth}
+                      {metrics.loading ? '-' : `${metrics.completedClientsThisMonth} / ${metrics.completedClientsMonthlyPaymentSum.toLocaleString('ru-RU')}`}
                     </p>
                   </div>
                 </div>
