@@ -263,6 +263,30 @@ export const AdminPanel = () => {
         completedPaymentsSum,
         loading: false
       });
+
+      // Отправляем метрики в PnL Tracker
+      try {
+        const today = new Date();
+        const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        
+        await supabase.functions.invoke('sync-dashboard-metrics', {
+          body: {
+            event_type: 'dashboard_metrics',
+            new_clients_count: newClientsCount || 0,
+            new_clients_monthly_payment_sum: newClientsMonthlyPaymentSum,
+            completed_clients_count: completedThisMonthCount,
+            completed_clients_monthly_payment_sum: completedClientsMonthlyPaymentSum,
+            company: 'Спасение',
+            user_id: selectedEmployee || user?.id || '',
+            date: new Date().toISOString(),
+            month: monthStr
+          }
+        });
+        console.log('Dashboard metrics sent to PnL Tracker');
+      } catch (syncError) {
+        console.error('Failed to sync dashboard metrics to PnL Tracker:', syncError);
+        // Не показываем ошибку пользователю, только логируем
+      }
     } catch (error) {
       console.error('Ошибка при загрузке метрик админа:', error);
       setMetrics(prev => ({ ...prev, loading: false }));

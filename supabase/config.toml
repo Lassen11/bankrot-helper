@@ -2,3 +2,6 @@ project_id = "gidvpxxfgvivjbzfpxcg"
 
 [functions.get-payment-summary]
 verify_jwt = false
+
+[functions.sync-dashboard-metrics]
+verify_jwt = false
