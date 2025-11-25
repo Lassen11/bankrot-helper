@@ -635,12 +635,149 @@ if (payload.event_type === 'new_client') {
 }
 ```
 
+## 7. Синхронизация метрик дашборда
+
+С версии 2.0 добавлена автоматическая синхронизация метрик дашборда администратора.
+
+### Новый тип события: `dashboard_metrics`
+
+Каждый раз когда администратор заходит в дашборд или обновляет данные, автоматически отправляется событие с метриками:
+
+```typescript
+interface DashboardMetricsPayload {
+  event_type: 'dashboard_metrics';
+  new_clients_count: number;                    // Количество новых клиентов за текущий месяц
+  new_clients_monthly_payment_sum: number;      // Сумма ежемесячных платежей новых клиентов
+  completed_clients_count: number;              // Количество завершенных дел за текущий месяц
+  completed_clients_monthly_payment_sum: number; // Сумма ежемесячных платежей завершенных клиентов
+  company: string;                              // Название компании ("Спасение")
+  user_id: string;                              // ID пользователя или выбранного сотрудника
+  date: string;                                 // ISO дата отправки
+  month: string;                                // Месяц в формате "YYYY-MM"
+}
+```
+
+### Обработка в webhook-from-bankrot
+
+Добавьте обработчик для этого типа события:
+
+```typescript
+if (payload.event_type === 'dashboard_metrics') {
+  // Сохраняем или обновляем метрики дашборда
+  await supabase
+    .from('bankrot_dashboard_metrics')
+    .upsert({
+      month: payload.month,
+      new_clients_count: payload.new_clients_count,
+      new_clients_monthly_payment_sum: payload.new_clients_monthly_payment_sum,
+      completed_clients_count: payload.completed_clients_count,
+      completed_clients_monthly_payment_sum: payload.completed_clients_monthly_payment_sum,
+      company: payload.company,
+      user_id: payload.user_id,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'month,company,user_id'
+    });
+}
+```
+
+### Таблица для метрик дашборда
+
+Создайте таблицу для хранения метрик:
+
+```sql
+CREATE TABLE IF NOT EXISTS bankrot_dashboard_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  month TEXT NOT NULL,
+  new_clients_count INTEGER DEFAULT 0,
+  new_clients_monthly_payment_sum NUMERIC DEFAULT 0,
+  completed_clients_count INTEGER DEFAULT 0,
+  completed_clients_monthly_payment_sum NUMERIC DEFAULT 0,
+  company TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(month, company, user_id)
+);
+
+CREATE INDEX idx_dashboard_metrics_month ON bankrot_dashboard_metrics(month DESC);
+CREATE INDEX idx_dashboard_metrics_company ON bankrot_dashboard_metrics(company);
+```
+
+### Отображение метрик в PnL Tracker
+
+В основном дашборде PnL Tracker используйте эти данные для блоков:
+
+```typescript
+// Пример компонента для отображения метрик
+import { Card, CardContent } from "@/components/ui/card";
+import { UserPlus, TrendingUp } from "lucide-react";
+
+interface DashboardMetrics {
+  new_clients_count: number;
+  new_clients_monthly_payment_sum: number;
+  completed_clients_count: number;
+  completed_clients_monthly_payment_sum: number;
+}
+
+export const BankrotMetrics = ({ metrics }: { metrics: DashboardMetrics }) => {
+  const formatAmount = (amount: number) => {
+    return amount.toLocaleString('ru-RU');
+  };
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {/* Новых клиентов за месяц */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-cyan-100 flex items-center justify-center">
+              <UserPlus className="h-6 w-6 text-cyan-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Новых клиентов за месяц
+              </p>
+              <p className="text-2xl font-bold text-cyan-600">
+                {metrics.new_clients_count} / {formatAmount(metrics.new_clients_monthly_payment_sum)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Завершенных дел за месяц */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Завершенных дел за месяц
+              </p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {metrics.completed_clients_count} / {formatAmount(metrics.completed_clients_monthly_payment_sum)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+```
+
 ## Использование
 
 1. Скопируйте компоненты в папку `components` вашего проекта pnltracker
 2. Создайте страницу `/clients` и используйте компонент `ClientsPage`
 3. Настройте получение данных из базы данных через API
 4. Убедитесь, что webhook корректно сохраняет данные в таблицу
+5. **ВАЖНО**: Добавьте обработку события `dashboard_metrics` в webhook для синхронизации метрик дашборда
+6. Создайте таблицу `bankrot_dashboard_metrics` для хранения метрик
+7. Используйте компонент `BankrotMetrics` для отображения метрик в основном дашборде
 
 ## Необходимые UI компоненты
 
