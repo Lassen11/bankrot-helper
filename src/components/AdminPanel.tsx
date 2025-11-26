@@ -17,6 +17,7 @@ import { AgentsManagement } from "./AgentsManagement";
 import { AdminBonusManagement } from "./AdminBonusManagement";
 import { TerminatedClientsHistory } from "./TerminatedClientsHistory";
 import { SuspendedClientsHistory } from "./SuspendedClientsHistory";
+import { AllPaymentsDialog } from "./AllPaymentsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -84,6 +85,7 @@ export const AdminPanel = () => {
   });
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
+  const [allPaymentsDialogOpen, setAllPaymentsDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -751,10 +753,15 @@ export const AdminPanel = () => {
           {/* История последних платежей */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                История последних платежей
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  История последних платежей
+                </CardTitle>
+                <Button onClick={() => setAllPaymentsDialogOpen(true)}>
+                  Все платежи
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -804,6 +811,11 @@ export const AdminPanel = () => {
 
           {/* Календарь платежей */}
           <PaymentsCalendar employeeId={selectedEmployee === 'all' ? undefined : selectedEmployee} />
+
+          <AllPaymentsDialog 
+            open={allPaymentsDialogOpen}
+            onOpenChange={setAllPaymentsDialogOpen}
+          />
         </TabsContent>
 
         <TabsContent value="employees" className="space-y-6">
