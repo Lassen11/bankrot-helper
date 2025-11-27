@@ -217,9 +217,6 @@ export const AdminPanel = () => {
 
       if (paymentsError) throw paymentsError;
 
-      // Создаем Map клиентов для быстрого доступа к monthly_payment
-      const clientsMap = new Map(clients?.map(c => [c.id, c.monthly_payment]) || []);
-
       // Подсчитываем уникальных клиентов с платежами
       const uniqueClientsWithPayments = new Set<string>();
       const clientsWithCompletedPayments = new Set<string>();
@@ -231,12 +228,8 @@ export const AdminPanel = () => {
         }
       });
 
-      // Суммируем monthly_payment для запланированной суммы (для уникальных клиентов)
-      let totalPaymentsSum = 0;
-      uniqueClientsWithPayments.forEach(clientId => {
-        const monthlyPayment = clientsMap.get(clientId) || 0;
-        totalPaymentsSum += monthlyPayment;
-      });
+      // Плановая сумма = сумма monthly_payment ВСЕХ активных клиентов
+      const totalPaymentsSum = clients?.reduce((sum, client) => sum + (client.monthly_payment || 0), 0) || 0;
 
       // Суммируем фактические платежи (custom_amount или original_amount) для оплаченных
       let completedPaymentsSum = 0;
