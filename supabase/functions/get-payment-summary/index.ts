@@ -48,10 +48,10 @@ Deno.serve(async (req) => {
     const endDay = new Date(year, month, 0).getDate();
     const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
 
-    // Get active clients with monthly_payment
+    // Get active clients with monthly_payment and contract_date
     let clientsQuery = supabase
       .from('clients')
-      .select('id, user_id, monthly_payment')
+      .select('id, user_id, monthly_payment, contract_date')
       .eq('is_terminated', false)
       .eq('is_suspended', false);
 
@@ -103,6 +103,9 @@ Deno.serve(async (req) => {
       throw paymentsError;
     }
 
+    // Create Map for fast access to monthly_payment and contract_date
+    const clientsMap = new Map(clients.map(c => [c.id, { monthly_payment: c.monthly_payment, contract_date: c.contract_date }]));
+
     // Calculate unique clients with payments
     const uniqueClientsWithPayments = new Set<string>();
     const clientsWithCompletedPayments = new Set<string>();
@@ -116,8 +119,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Planned sum = sum of monthly_payment for ALL active clients
-    const totalPaymentsSum = clients.reduce((sum, c) => sum + (c.monthly_payment || 0), 0);
+    // Planned sum = sum of monthly_payment for clients with payments this month,
+    // excluding new clients (created in current month)
+    let totalPaymentsSum = 0;
+    uniqueClientsWithPayments.forEach(clientId => {
+      const clientData = clientsMap.get(clientId);
+      if (clientData) {
+        // Check that client is not new (contract date not in current month)
+        const contractDate = new Date(clientData.contract_date);
+        const currentMonth = new Date(year, month - 1, 1);
+        const isNewClient = contractDate >= currentMonth && 
+                           contractDate.getMonth() === month - 1 &&
+                           contractDate.getFullYear() === year;
+        
+        if (!isNewClient) {
+          totalPaymentsSum += clientData.monthly_payment || 0;
+        }
+      }
+    });
 
     // Sum actual payments (custom_amount or original_amount) for completed
     let completedPaymentsSum = 0;
