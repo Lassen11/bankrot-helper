@@ -156,9 +156,9 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             installment_period: installmentPeriod,
             first_payment: firstPaymentAmount,
             monthly_payment: monthlyPayment,
-            remaining_amount: contractAmount - firstPaymentAmount,
-            total_paid: firstPaymentAmount,
-            deposit_paid: firstPaymentAmount,
+            remaining_amount: contractAmount,
+            total_paid: 0,
+            deposit_paid: 0,
             deposit_target: 70000,
             payment_day: parseInt(formData.paymentDay),
             contract_date: formData.contractDate,
@@ -177,7 +177,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
         const startDate = new Date(formData.contractDate);
         const paymentDay = parseInt(formData.paymentDay);
 
-        // Создаем авансовый платеж сразу как выполненный
+        // Создаем авансовый платеж
         if (firstPaymentAmount > 0) {
           paymentsToCreate.push({
             client_id: clientData.id,
@@ -186,8 +186,6 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             original_amount: firstPaymentAmount,
             due_date: formData.firstPaymentDate,
             payment_type: 'advance',
-            is_completed: true,
-            completed_at: formData.firstPaymentDate,
             account: formData.account
           });
         }
