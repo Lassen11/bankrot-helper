@@ -103,9 +103,6 @@ Deno.serve(async (req) => {
       throw paymentsError;
     }
 
-    // Create Map for fast access to monthly_payment
-    const clientsMap = new Map(clients.map(c => [c.id, c.monthly_payment]));
-
     // Calculate unique clients with payments
     const uniqueClientsWithPayments = new Set<string>();
     const clientsWithCompletedPayments = new Set<string>();
@@ -119,12 +116,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Sum monthly_payment for planned sum (for unique clients)
-    let totalPaymentsSum = 0;
-    uniqueClientsWithPayments.forEach(clientId => {
-      const monthlyPayment = clientsMap.get(clientId) || 0;
-      totalPaymentsSum += monthlyPayment;
-    });
+    // Planned sum = sum of monthly_payment for ALL active clients
+    const totalPaymentsSum = clients.reduce((sum, c) => sum + (c.monthly_payment || 0), 0);
 
     // Sum actual payments (custom_amount or original_amount) for completed
     let completedPaymentsSum = 0;
