@@ -47,10 +47,12 @@ export const PaymentsClientsDialog = ({
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-      // Получаем клиентов
+      // Получаем клиентов (исключая расторгнутых и приостановленных)
       let clientsQuery = supabase
         .from('clients')
-        .select('id, full_name, employee_id');
+        .select('id, full_name, employee_id')
+        .eq('is_terminated', false)
+        .eq('is_suspended', false);
 
       // Фильтруем по сотруднику
       const employeeIdToFilter = selectedEmployeeId || (!isAdmin ? userId : undefined);
