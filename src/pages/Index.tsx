@@ -44,7 +44,7 @@ const Index = () => {
     try {
       let query = supabase
         .from('clients')
-        .select('contract_amount, total_paid, id, monthly_payment')
+        .select('contract_amount, total_paid, id, monthly_payment, contract_date')
         .eq('is_terminated', false)
         .eq('is_suspended', false);
       
@@ -92,6 +92,9 @@ const Index = () => {
 
         if (paymentsError) throw paymentsError;
 
+        // Создаем Map клиентов для быстрого доступа к monthly_payment и contract_date
+        const clientsMap = new Map(clients.map(c => [c.id, { monthly_payment: c.monthly_payment, contract_date: c.contract_date }]));
+
         // Подсчитываем уникальных клиентов с платежами
         const uniqueClientsWithPayments = new Set<string>();
         const clientsWithCompletedPayments = new Set<string>();
@@ -103,8 +106,23 @@ const Index = () => {
           }
         });
 
-        // Плановая сумма = сумма monthly_payment ВСЕХ активных клиентов
-        const totalPaymentsSum = clients.reduce((sum, client) => sum + (client.monthly_payment || 0), 0);
+        // Плановая сумма = сумма monthly_payment клиентов с платежами в этом месяце, 
+        // исключая новых клиентов (созданных в текущем месяце)
+        let totalPaymentsSum = 0;
+        uniqueClientsWithPayments.forEach(clientId => {
+          const clientData = clientsMap.get(clientId);
+          if (clientData) {
+            // Проверяем, что клиент не новый (дата договора не в текущем месяце)
+            const contractDate = new Date(clientData.contract_date);
+            const isNewClient = contractDate >= currentDate && 
+                               contractDate.getMonth() === currentDate.getMonth() &&
+                               contractDate.getFullYear() === currentDate.getFullYear();
+            
+            if (!isNewClient) {
+              totalPaymentsSum += clientData.monthly_payment || 0;
+            }
+          }
+        });
 
         // Суммируем фактические платежи (custom_amount или original_amount) для оплаченных
         let completedPaymentsSum = 0;
