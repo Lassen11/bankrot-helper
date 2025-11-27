@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import ClientView from "./pages/ClientView";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import PaymentHistory from "./pages/PaymentHistory";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -35,6 +36,11 @@ const App = () => (
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment-history" element={
+              <ProtectedRoute>
+                <PaymentHistory />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
