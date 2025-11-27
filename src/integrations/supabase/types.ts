@@ -200,6 +200,57 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_history: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          client_id: string
+          created_at: string
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          payment_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          client_id: string
+          created_at?: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          payment_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          client_id?: string
+          created_at?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_history_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_receipts: {
         Row: {
           client_id: string
