@@ -165,6 +165,23 @@ export const PaymentSchedule = ({
     const newCompletedStatus = !payment.is_completed;
     const paymentAmount = payment.custom_amount ?? payment.original_amount;
 
+    // Сначала сохраняем все изменения платежа (сумма, дата, счет)
+    const { error: updateError } = await supabase
+      .from('payments')
+      .update({
+        custom_amount: payment.custom_amount,
+        due_date: payment.due_date,
+        account: payment.account,
+        is_completed: newCompletedStatus,
+        completed_at: newCompletedStatus ? new Date().toISOString() : null
+      })
+      .eq('id', paymentId);
+
+    if (updateError) {
+      toast.error('Ошибка сохранения платежа');
+      return;
+    }
+
     // Если платеж отмечается как выполненный, отправляем данные в pnltracker
     if (newCompletedStatus) {
       try {
@@ -196,20 +213,6 @@ export const PaymentSchedule = ({
         console.error('Error sending to pnltracker:', webhookError);
         // Не показываем ошибку пользователю
       }
-    }
-
-    // Обновляем статус платежа
-    const { error: paymentError } = await supabase
-      .from('payments')
-      .update({
-        is_completed: newCompletedStatus,
-        completed_at: newCompletedStatus ? new Date().toISOString() : null
-      })
-      .eq('id', paymentId);
-
-    if (paymentError) {
-      toast.error('Ошибка обновления статуса платежа');
-      return;
     }
 
     // Получаем текущие данные клиента для расчета новой суммы
@@ -300,17 +303,8 @@ export const PaymentSchedule = ({
     setEditAmount(currentAmount);
   };
 
-  const saveCustomAmount = async (paymentId: string, amount: number) => {
-    const { error } = await supabase
-      .from('payments')
-      .update({ custom_amount: amount })
-      .eq('id', paymentId);
-
-    if (error) {
-      toast.error('Ошибка сохранения суммы');
-      return;
-    }
-
+  const saveCustomAmount = (paymentId: string, amount: number) => {
+    // Обновляем только локальное состояние, сохранение в БД произойдет при клике на чекбокс
     const updatedPayments = payments.map(p => 
       p.id === paymentId 
         ? { ...p, custom_amount: amount }
@@ -318,7 +312,6 @@ export const PaymentSchedule = ({
     );
     setPayments(updatedPayments);
     setEditingPayment(null);
-    toast.success('Сумма платежа обновлена');
   };
 
   const startEditingDate = (paymentId: string, currentDate: string) => {
@@ -326,17 +319,8 @@ export const PaymentSchedule = ({
     setEditDate(new Date(currentDate));
   };
 
-  const saveCustomDate = async (paymentId: string, date: Date) => {
-    const { error } = await supabase
-      .from('payments')
-      .update({ due_date: format(date, 'yyyy-MM-dd') })
-      .eq('id', paymentId);
-
-    if (error) {
-      toast.error('Ошибка сохранения даты');
-      return;
-    }
-
+  const saveCustomDate = (paymentId: string, date: Date) => {
+    // Обновляем только локальное состояние, сохранение в БД произойдет при клике на чекбокс
     const updatedPayments = payments.map(p => 
       p.id === paymentId 
         ? { ...p, due_date: format(date, 'yyyy-MM-dd') }
@@ -345,7 +329,6 @@ export const PaymentSchedule = ({
     setPayments(updatedPayments);
     updatePaymentStats(updatedPayments);
     setEditingDate(null);
-    toast.success('Дата платежа обновлена');
   };
 
   const startEditingAccount = (paymentId: string, currentAccount: string | null) => {
@@ -353,17 +336,8 @@ export const PaymentSchedule = ({
     setEditAccount(currentAccount || "");
   };
 
-  const saveCustomAccount = async (paymentId: string, account: string) => {
-    const { error } = await supabase
-      .from('payments')
-      .update({ account: account || null })
-      .eq('id', paymentId);
-
-    if (error) {
-      toast.error('Ошибка сохранения счета');
-      return;
-    }
-
+  const saveCustomAccount = (paymentId: string, account: string) => {
+    // Обновляем только локальное состояние, сохранение в БД произойдет при клике на чекбокс
     const updatedPayments = payments.map(p => 
       p.id === paymentId 
         ? { ...p, account: account || null }
@@ -371,7 +345,6 @@ export const PaymentSchedule = ({
     );
     setPayments(updatedPayments);
     setEditingAccount(null);
-    toast.success('Счет обновлен');
   };
 
   const canCompletePayment = (payment: Payment) => {
