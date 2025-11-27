@@ -115,6 +115,8 @@ export const AllPaymentsDialog = ({ open, onOpenChange }: AllPaymentsDialogProps
     const { data: clientsData } = await supabase
       .from('clients')
       .select('id, full_name')
+      .eq('is_terminated', false)
+      .eq('is_suspended', false)
       .in('id', clientIds);
 
     const { data: profilesData } = await supabase

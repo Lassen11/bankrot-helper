@@ -57,10 +57,12 @@ export const PaymentsCalendar = ({ employeeId }: PaymentsCalendarProps) => {
           original_amount,
           is_completed,
           payment_type,
-          clients!inner(full_name, employee_id)
+          clients!inner(full_name, employee_id, is_terminated, is_suspended)
         `)
         .gte('due_date', format(monthStart, 'yyyy-MM-dd'))
         .lte('due_date', format(monthEnd, 'yyyy-MM-dd'))
+        .eq('clients.is_terminated', false)
+        .eq('clients.is_suspended', false)
         .order('due_date', { ascending: true });
 
       // Если передан employeeId, фильтруем по клиентам этого сотрудника
