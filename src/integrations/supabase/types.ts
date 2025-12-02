@@ -30,8 +30,11 @@ export type Database = {
           payment_month_2: number | null
           payment_month_3: number | null
           payout_1: number | null
+          payout_1_completed: boolean
           payout_2: number | null
+          payout_2_completed: boolean
           payout_3: number | null
+          payout_3_completed: boolean
           recommendation_name: string | null
           remaining_payment: number | null
           reward_amount: number | null
@@ -52,8 +55,11 @@ export type Database = {
           payment_month_2?: number | null
           payment_month_3?: number | null
           payout_1?: number | null
+          payout_1_completed?: boolean
           payout_2?: number | null
+          payout_2_completed?: boolean
           payout_3?: number | null
+          payout_3_completed?: boolean
           recommendation_name?: string | null
           remaining_payment?: number | null
           reward_amount?: number | null
@@ -74,8 +80,11 @@ export type Database = {
           payment_month_2?: number | null
           payment_month_3?: number | null
           payout_1?: number | null
+          payout_1_completed?: boolean
           payout_2?: number | null
+          payout_2_completed?: boolean
           payout_3?: number | null
+          payout_3_completed?: boolean
           recommendation_name?: string | null
           remaining_payment?: number | null
           reward_amount?: number | null

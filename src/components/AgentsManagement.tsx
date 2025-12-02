@@ -8,8 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Filter } from 'lucide-react';
+import { addMonths, setDate, format } from 'date-fns';
+import { ru } from 'date-fns/locale';
 
 interface Agent {
   id: string;
@@ -30,6 +33,9 @@ interface Agent {
   payout_1: number;
   payout_2: number;
   payout_3: number;
+  payout_1_completed: boolean;
+  payout_2_completed: boolean;
+  payout_3_completed: boolean;
 }
 
 interface Employee {
@@ -41,12 +47,15 @@ interface AgentsManagementProps {
   isAdmin?: boolean;
 }
 
+type PayoutFilter = 'all' | 'pending_1' | 'pending_2' | 'pending_3' | 'all_pending' | 'all_completed';
+
 export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
+  const [payoutFilter, setPayoutFilter] = useState<PayoutFilter>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [formData, setFormData] = useState({
@@ -67,6 +76,21 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
     payout_2: 0,
     payout_3: 0,
   });
+
+  // Вычисляем дату выплаты: 3-е число следующего месяца после first_payment_date + offset
+  const calculatePayoutDate = (firstPaymentDate: string | null, monthOffset: number): Date | null => {
+    if (!firstPaymentDate) return null;
+    const date = new Date(firstPaymentDate);
+    // Следующий месяц + offset (для выплаты 1 - offset=0, для выплаты 2 - offset=1, и т.д.)
+    const nextMonth = addMonths(date, 1 + monthOffset);
+    // Устанавливаем 3-е число
+    return setDate(nextMonth, 3);
+  };
+
+  const formatPayoutDate = (date: Date | null): string => {
+    if (!date) return '-';
+    return format(date, 'dd.MM.yyyy', { locale: ru });
+  };
 
   useEffect(() => {
     if (user) {
@@ -118,6 +142,52 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
       toast.error('Ошибка при загрузке данных');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Фильтрация агентов по статусу выплат
+  const filteredAgents = agents.filter(agent => {
+    switch (payoutFilter) {
+      case 'pending_1':
+        return !agent.payout_1_completed && agent.payout_1 > 0;
+      case 'pending_2':
+        return !agent.payout_2_completed && agent.payout_2 > 0;
+      case 'pending_3':
+        return !agent.payout_3_completed && agent.payout_3 > 0;
+      case 'all_pending':
+        return (!agent.payout_1_completed && agent.payout_1 > 0) ||
+               (!agent.payout_2_completed && agent.payout_2 > 0) ||
+               (!agent.payout_3_completed && agent.payout_3 > 0);
+      case 'all_completed':
+        return (agent.payout_1_completed || agent.payout_1 === 0) &&
+               (agent.payout_2_completed || agent.payout_2 === 0) &&
+               (agent.payout_3_completed || agent.payout_3 === 0);
+      default:
+        return true;
+    }
+  });
+
+  const handlePayoutToggle = async (agentId: string, payoutNumber: 1 | 2 | 3, currentValue: boolean) => {
+    try {
+      const fieldName = `payout_${payoutNumber}_completed` as const;
+      const { error } = await supabase
+        .from('agents')
+        .update({ [fieldName]: !currentValue })
+        .eq('id', agentId);
+
+      if (error) throw error;
+
+      // Обновляем локальное состояние
+      setAgents(prev => prev.map(agent => 
+        agent.id === agentId 
+          ? { ...agent, [fieldName]: !currentValue }
+          : agent
+      ));
+
+      toast.success(`Выплата ${payoutNumber} ${!currentValue ? 'отмечена' : 'снята'}`);
+    } catch (error) {
+      console.error('Error updating payout status:', error);
+      toast.error('Ошибка при обновлении статуса выплаты');
     }
   };
 
@@ -221,13 +291,20 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
   };
 
   const calculateStats = () => {
-    const totalReward = agents.reduce((sum, a) => sum + Number(a.reward_amount || 0), 0);
-    const totalRemaining = agents.reduce((sum, a) => sum + Number(a.remaining_payment || 0), 0);
-    const totalPaid = agents.reduce((sum, a) => 
-      sum + Number(a.payout_1 || 0) + Number(a.payout_2 || 0) + Number(a.payout_3 || 0), 0
+    const totalReward = filteredAgents.reduce((sum, a) => sum + Number(a.reward_amount || 0), 0);
+    const totalRemaining = filteredAgents.reduce((sum, a) => sum + Number(a.remaining_payment || 0), 0);
+    const totalPaid = filteredAgents.reduce((sum, a) => 
+      sum + (a.payout_1_completed ? Number(a.payout_1 || 0) : 0) 
+          + (a.payout_2_completed ? Number(a.payout_2 || 0) : 0) 
+          + (a.payout_3_completed ? Number(a.payout_3 || 0) : 0), 0
+    );
+    const totalPending = filteredAgents.reduce((sum, a) => 
+      sum + (!a.payout_1_completed ? Number(a.payout_1 || 0) : 0) 
+          + (!a.payout_2_completed ? Number(a.payout_2 || 0) : 0) 
+          + (!a.payout_3_completed ? Number(a.payout_3 || 0) : 0), 0
     );
 
-    return { totalReward, totalRemaining, totalPaid };
+    return { totalReward, totalRemaining, totalPaid, totalPending };
   };
 
   const stats = calculateStats();
@@ -314,7 +391,7 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="first_payment_date">Дата первого платежа</Label>
+                    <Label htmlFor="first_payment_date">Дата первого платежа клиента</Label>
                     <Input
                       id="first_payment_date"
                       type="date"
@@ -419,11 +496,11 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Дашборд */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">Всего агентов</div>
-              <div className="text-2xl font-bold">{agents.length}</div>
+              <div className="text-2xl font-bold">{filteredAgents.length}</div>
             </CardContent>
           </Card>
           <Card>
@@ -438,27 +515,53 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
               <div className="text-2xl font-bold text-green-600">{stats.totalPaid.toLocaleString()} ₽</div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground">К выплате</div>
+              <div className="text-2xl font-bold text-amber-600">{stats.totalPending.toLocaleString()} ₽</div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Фильтр по сотрудникам для админа */}
-        {isAdmin && (
+        {/* Фильтры */}
+        <div className="flex flex-wrap gap-4 items-center">
+          {isAdmin && (
+            <div className="flex gap-2 items-center">
+              <Label>Сотрудник:</Label>
+              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все сотрудники</SelectItem>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.user_id} value={emp.user_id}>
+                      {emp.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
           <div className="flex gap-2 items-center">
-            <Label>Сотрудник:</Label>
-            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-              <SelectTrigger className="w-[250px]">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Label>Фильтр выплат:</Label>
+            <Select value={payoutFilter} onValueChange={(v) => setPayoutFilter(v as PayoutFilter)}>
+              <SelectTrigger className="w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Все сотрудники</SelectItem>
-                {employees.map((emp) => (
-                  <SelectItem key={emp.user_id} value={emp.user_id}>
-                    {emp.full_name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">Все агенты</SelectItem>
+                <SelectItem value="pending_1">Ожидает выплату 1</SelectItem>
+                <SelectItem value="pending_2">Ожидает выплату 2</SelectItem>
+                <SelectItem value="pending_3">Ожидает выплату 3</SelectItem>
+                <SelectItem value="all_pending">Все ожидающие</SelectItem>
+                <SelectItem value="all_completed">Все выплачено</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        )}
+        </div>
 
         {/* Таблица агентов */}
         <div className="border rounded-lg overflow-x-auto">
@@ -467,57 +570,129 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
               <TableRow>
                 <TableHead>ФИО агента</TableHead>
                 <TableHead>Телефон</TableHead>
-                <TableHead>Категория</TableHead>
                 <TableHead>Дата 1-го платежа</TableHead>
-                <TableHead>Вознаграждение</TableHead>
-                <TableHead>Остаток</TableHead>
-                <TableHead>Выплачено</TableHead>
+                <TableHead className="text-center">
+                  <div className="flex flex-col items-center">
+                    <span>Выплата 1</span>
+                    <span className="text-xs text-muted-foreground">(дата / сумма)</span>
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">
+                  <div className="flex flex-col items-center">
+                    <span>Выплата 2</span>
+                    <span className="text-xs text-muted-foreground">(дата / сумма)</span>
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">
+                  <div className="flex flex-col items-center">
+                    <span>Выплата 3</span>
+                    <span className="text-xs text-muted-foreground">(дата / сумма)</span>
+                  </div>
+                </TableHead>
                 <TableHead className="text-right">Действия</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {agents.length === 0 ? (
+              {filteredAgents.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Агенты не найдены
                   </TableCell>
                 </TableRow>
               ) : (
-                agents.map((agent) => (
-                  <TableRow key={agent.id}>
-                    <TableCell className="font-medium">{agent.agent_full_name}</TableCell>
-                    <TableCell>{agent.agent_phone}</TableCell>
-                    <TableCell>{agent.client_category || '-'}</TableCell>
-                    <TableCell>
-                      {agent.first_payment_date
-                        ? new Date(agent.first_payment_date).toLocaleDateString('ru-RU')
-                        : '-'}
-                    </TableCell>
-                    <TableCell>{Number(agent.reward_amount || 0).toLocaleString()} ₽</TableCell>
-                    <TableCell>{Number(agent.remaining_payment || 0).toLocaleString()} ₽</TableCell>
-                    <TableCell className="text-green-600">
-                      {(Number(agent.payout_1 || 0) + Number(agent.payout_2 || 0) + Number(agent.payout_3 || 0)).toLocaleString()} ₽
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(agent)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(agent.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredAgents.map((agent) => {
+                  const payoutDate1 = calculatePayoutDate(agent.first_payment_date, 0);
+                  const payoutDate2 = calculatePayoutDate(agent.first_payment_date, 1);
+                  const payoutDate3 = calculatePayoutDate(agent.first_payment_date, 2);
+
+                  return (
+                    <TableRow key={agent.id}>
+                      <TableCell className="font-medium">{agent.agent_full_name}</TableCell>
+                      <TableCell>{agent.agent_phone}</TableCell>
+                      <TableCell>
+                        {agent.first_payment_date
+                          ? new Date(agent.first_payment_date).toLocaleDateString('ru-RU')
+                          : '-'}
+                      </TableCell>
+                      
+                      {/* Выплата 1 */}
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
+                          <Checkbox
+                            checked={agent.payout_1_completed}
+                            onCheckedChange={() => handlePayoutToggle(agent.id, 1, agent.payout_1_completed)}
+                            disabled={agent.payout_1 === 0}
+                          />
+                          <div className={`text-center ${agent.payout_1_completed ? 'text-green-600 line-through' : ''}`}>
+                            <div className="text-xs text-muted-foreground">
+                              {formatPayoutDate(payoutDate1)}
+                            </div>
+                            <div className="font-medium">
+                              {Number(agent.payout_1 || 0).toLocaleString()} ₽
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      {/* Выплата 2 */}
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
+                          <Checkbox
+                            checked={agent.payout_2_completed}
+                            onCheckedChange={() => handlePayoutToggle(agent.id, 2, agent.payout_2_completed)}
+                            disabled={agent.payout_2 === 0}
+                          />
+                          <div className={`text-center ${agent.payout_2_completed ? 'text-green-600 line-through' : ''}`}>
+                            <div className="text-xs text-muted-foreground">
+                              {formatPayoutDate(payoutDate2)}
+                            </div>
+                            <div className="font-medium">
+                              {Number(agent.payout_2 || 0).toLocaleString()} ₽
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      {/* Выплата 3 */}
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
+                          <Checkbox
+                            checked={agent.payout_3_completed}
+                            onCheckedChange={() => handlePayoutToggle(agent.id, 3, agent.payout_3_completed)}
+                            disabled={agent.payout_3 === 0}
+                          />
+                          <div className={`text-center ${agent.payout_3_completed ? 'text-green-600 line-through' : ''}`}>
+                            <div className="text-xs text-muted-foreground">
+                              {formatPayoutDate(payoutDate3)}
+                            </div>
+                            <div className="font-medium">
+                              {Number(agent.payout_3 || 0).toLocaleString()} ₽
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(agent)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(agent.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
