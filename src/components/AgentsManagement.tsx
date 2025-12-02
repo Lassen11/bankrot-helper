@@ -10,9 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Loader2, Plus, Pencil, Trash2, Filter } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Filter, Eye } from 'lucide-react';
 import { addMonths, setDate, format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { AgentDetailsDialog } from './AgentDetailsDialog';
 
 interface Agent {
   id: string;
@@ -30,6 +31,9 @@ interface Agent {
   payment_month_1: number;
   payment_month_2: number;
   payment_month_3: number;
+  payment_month_1_completed: boolean;
+  payment_month_2_completed: boolean;
+  payment_month_3_completed: boolean;
   payout_1: number;
   payout_2: number;
   payout_3: number;
@@ -47,7 +51,7 @@ interface AgentsManagementProps {
   isAdmin?: boolean;
 }
 
-type PayoutFilter = 'all' | 'pending_1' | 'pending_2' | 'pending_3' | 'all_pending' | 'all_completed';
+type PayoutFilter = 'all' | 'pending_1' | 'pending_2' | 'pending_3' | 'all_pending' | 'all_completed' | 'payment_pending_1' | 'payment_pending_2' | 'payment_pending_3';
 
 export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => {
   const { user } = useAuth();
@@ -58,6 +62,8 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
   const [payoutFilter, setPayoutFilter] = useState<PayoutFilter>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [detailsAgent, setDetailsAgent] = useState<Agent | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [formData, setFormData] = useState({
     agent_full_name: '',
     agent_phone: '',
@@ -77,17 +83,22 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
     payout_3: 0,
   });
 
+  // Вычисляем дату платежа клиента: first_payment_date + offset месяцев
+  const calculatePaymentDate = (firstPaymentDate: string | null, monthOffset: number): Date | null => {
+    if (!firstPaymentDate) return null;
+    const date = new Date(firstPaymentDate);
+    return addMonths(date, monthOffset);
+  };
+
   // Вычисляем дату выплаты: 3-е число следующего месяца после first_payment_date + offset
   const calculatePayoutDate = (firstPaymentDate: string | null, monthOffset: number): Date | null => {
     if (!firstPaymentDate) return null;
     const date = new Date(firstPaymentDate);
-    // Следующий месяц + offset (для выплаты 1 - offset=0, для выплаты 2 - offset=1, и т.д.)
     const nextMonth = addMonths(date, 1 + monthOffset);
-    // Устанавливаем 3-е число
     return setDate(nextMonth, 3);
   };
 
-  const formatPayoutDate = (date: Date | null): string => {
+  const formatPaymentDate = (date: Date | null): string => {
     if (!date) return '-';
     return format(date, 'dd.MM.yyyy', { locale: ru });
   };
@@ -145,9 +156,15 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
     }
   };
 
-  // Фильтрация агентов по статусу выплат
+  // Фильтрация агентов по статусу выплат и платежей
   const filteredAgents = agents.filter(agent => {
     switch (payoutFilter) {
+      case 'payment_pending_1':
+        return !agent.payment_month_1_completed && agent.payment_month_1 > 0;
+      case 'payment_pending_2':
+        return !agent.payment_month_2_completed && agent.payment_month_2 > 0;
+      case 'payment_pending_3':
+        return !agent.payment_month_3_completed && agent.payment_month_3 > 0;
       case 'pending_1':
         return !agent.payout_1_completed && agent.payout_1 > 0;
       case 'pending_2':
@@ -166,6 +183,30 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
         return true;
     }
   });
+
+  const handlePaymentToggle = async (agentId: string, paymentNumber: 1 | 2 | 3, currentValue: boolean) => {
+    try {
+      const fieldName = `payment_month_${paymentNumber}_completed` as const;
+      const { error } = await supabase
+        .from('agents')
+        .update({ [fieldName]: !currentValue })
+        .eq('id', agentId);
+
+      if (error) throw error;
+
+      // Обновляем локальное состояние
+      setAgents(prev => prev.map(agent => 
+        agent.id === agentId 
+          ? { ...agent, [fieldName]: !currentValue }
+          : agent
+      ));
+
+      toast.success(`Платеж ${paymentNumber} ${!currentValue ? 'отмечен' : 'снят'}`);
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toast.error('Ошибка при обновлении статуса платежа');
+    }
+  };
 
   const handlePayoutToggle = async (agentId: string, payoutNumber: 1 | 2 | 3, currentValue: boolean) => {
     try {
@@ -227,7 +268,8 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
     }
   };
 
-  const handleEdit = (agent: Agent) => {
+  const handleEdit = (agent: Agent, e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditingAgent(agent);
     setFormData({
       agent_full_name: agent.agent_full_name,
@@ -250,7 +292,8 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm('Вы уверены, что хотите удалить этого агента?')) return;
 
     try {
@@ -266,6 +309,11 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
       console.error('Error deleting agent:', error);
       toast.error('Ошибка при удалении агента');
     }
+  };
+
+  const handleRowClick = (agent: Agent) => {
+    setDetailsAgent(agent);
+    setDetailsOpen(true);
   };
 
   const resetForm = () => {
@@ -546,17 +594,20 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
           
           <div className="flex gap-2 items-center">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Label>Фильтр выплат:</Label>
+            <Label>Фильтр:</Label>
             <Select value={payoutFilter} onValueChange={(v) => setPayoutFilter(v as PayoutFilter)}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[220px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все агенты</SelectItem>
+                <SelectItem value="payment_pending_1">Ожидает платеж 1</SelectItem>
+                <SelectItem value="payment_pending_2">Ожидает платеж 2</SelectItem>
+                <SelectItem value="payment_pending_3">Ожидает платеж 3</SelectItem>
                 <SelectItem value="pending_1">Ожидает выплату 1</SelectItem>
                 <SelectItem value="pending_2">Ожидает выплату 2</SelectItem>
                 <SelectItem value="pending_3">Ожидает выплату 3</SelectItem>
-                <SelectItem value="all_pending">Все ожидающие</SelectItem>
+                <SelectItem value="all_pending">Все ожидающие выплаты</SelectItem>
                 <SelectItem value="all_completed">Все выплачено</SelectItem>
               </SelectContent>
             </Select>
@@ -571,6 +622,24 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                 <TableHead>ФИО агента</TableHead>
                 <TableHead>Телефон</TableHead>
                 <TableHead>Дата 1-го платежа</TableHead>
+                <TableHead className="text-center">
+                  <div className="flex flex-col items-center">
+                    <span>Платеж 1</span>
+                    <span className="text-xs text-muted-foreground">(дата / сумма)</span>
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">
+                  <div className="flex flex-col items-center">
+                    <span>Платеж 2</span>
+                    <span className="text-xs text-muted-foreground">(дата / сумма)</span>
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">
+                  <div className="flex flex-col items-center">
+                    <span>Платеж 3</span>
+                    <span className="text-xs text-muted-foreground">(дата / сумма)</span>
+                  </div>
+                </TableHead>
                 <TableHead className="text-center">
                   <div className="flex flex-col items-center">
                     <span>Выплата 1</span>
@@ -595,18 +664,25 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
             <TableBody>
               {filteredAgents.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
                     Агенты не найдены
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredAgents.map((agent) => {
+                  const paymentDate1 = calculatePaymentDate(agent.first_payment_date, 1);
+                  const paymentDate2 = calculatePaymentDate(agent.first_payment_date, 2);
+                  const paymentDate3 = calculatePaymentDate(agent.first_payment_date, 3);
                   const payoutDate1 = calculatePayoutDate(agent.first_payment_date, 0);
                   const payoutDate2 = calculatePayoutDate(agent.first_payment_date, 1);
                   const payoutDate3 = calculatePayoutDate(agent.first_payment_date, 2);
 
                   return (
-                    <TableRow key={agent.id}>
+                    <TableRow 
+                      key={agent.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleRowClick(agent)}
+                    >
                       <TableCell className="font-medium">{agent.agent_full_name}</TableCell>
                       <TableCell>{agent.agent_phone}</TableCell>
                       <TableCell>
@@ -615,17 +691,74 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                           : '-'}
                       </TableCell>
                       
+                      {/* Платеж 1 */}
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={agent.payment_month_1_completed}
+                            onCheckedChange={() => handlePaymentToggle(agent.id, 1, agent.payment_month_1_completed)}
+                            disabled={agent.payment_month_1 === 0}
+                          />
+                          <div className={`text-center ${agent.payment_month_1_completed ? 'text-green-600 line-through' : ''}`}>
+                            <div className="text-xs text-muted-foreground">
+                              {formatPaymentDate(paymentDate1)}
+                            </div>
+                            <div className="font-medium">
+                              {Number(agent.payment_month_1 || 0).toLocaleString()} ₽
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      {/* Платеж 2 */}
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={agent.payment_month_2_completed}
+                            onCheckedChange={() => handlePaymentToggle(agent.id, 2, agent.payment_month_2_completed)}
+                            disabled={agent.payment_month_2 === 0}
+                          />
+                          <div className={`text-center ${agent.payment_month_2_completed ? 'text-green-600 line-through' : ''}`}>
+                            <div className="text-xs text-muted-foreground">
+                              {formatPaymentDate(paymentDate2)}
+                            </div>
+                            <div className="font-medium">
+                              {Number(agent.payment_month_2 || 0).toLocaleString()} ₽
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      {/* Платеж 3 */}
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={agent.payment_month_3_completed}
+                            onCheckedChange={() => handlePaymentToggle(agent.id, 3, agent.payment_month_3_completed)}
+                            disabled={agent.payment_month_3 === 0}
+                          />
+                          <div className={`text-center ${agent.payment_month_3_completed ? 'text-green-600 line-through' : ''}`}>
+                            <div className="text-xs text-muted-foreground">
+                              {formatPaymentDate(paymentDate3)}
+                            </div>
+                            <div className="font-medium">
+                              {Number(agent.payment_month_3 || 0).toLocaleString()} ₽
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      
                       {/* Выплата 1 */}
                       <TableCell>
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={agent.payout_1_completed}
                             onCheckedChange={() => handlePayoutToggle(agent.id, 1, agent.payout_1_completed)}
-                            disabled={agent.payout_1 === 0}
+                            disabled={agent.payout_1 === 0 || !agent.payment_month_1_completed}
                           />
-                          <div className={`text-center ${agent.payout_1_completed ? 'text-green-600 line-through' : ''}`}>
+                          <div className={`text-center ${agent.payout_1_completed ? 'text-green-600 line-through' : !agent.payment_month_1_completed ? 'text-muted-foreground' : ''}`}>
                             <div className="text-xs text-muted-foreground">
-                              {formatPayoutDate(payoutDate1)}
+                              {formatPaymentDate(payoutDate1)}
                             </div>
                             <div className="font-medium">
                               {Number(agent.payout_1 || 0).toLocaleString()} ₽
@@ -636,15 +769,15 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                       
                       {/* Выплата 2 */}
                       <TableCell>
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={agent.payout_2_completed}
                             onCheckedChange={() => handlePayoutToggle(agent.id, 2, agent.payout_2_completed)}
-                            disabled={agent.payout_2 === 0}
+                            disabled={agent.payout_2 === 0 || !agent.payment_month_2_completed}
                           />
-                          <div className={`text-center ${agent.payout_2_completed ? 'text-green-600 line-through' : ''}`}>
+                          <div className={`text-center ${agent.payout_2_completed ? 'text-green-600 line-through' : !agent.payment_month_2_completed ? 'text-muted-foreground' : ''}`}>
                             <div className="text-xs text-muted-foreground">
-                              {formatPayoutDate(payoutDate2)}
+                              {formatPaymentDate(payoutDate2)}
                             </div>
                             <div className="font-medium">
                               {Number(agent.payout_2 || 0).toLocaleString()} ₽
@@ -655,15 +788,15 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                       
                       {/* Выплата 3 */}
                       <TableCell>
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={agent.payout_3_completed}
                             onCheckedChange={() => handlePayoutToggle(agent.id, 3, agent.payout_3_completed)}
-                            disabled={agent.payout_3 === 0}
+                            disabled={agent.payout_3 === 0 || !agent.payment_month_3_completed}
                           />
-                          <div className={`text-center ${agent.payout_3_completed ? 'text-green-600 line-through' : ''}`}>
+                          <div className={`text-center ${agent.payout_3_completed ? 'text-green-600 line-through' : !agent.payment_month_3_completed ? 'text-muted-foreground' : ''}`}>
                             <div className="text-xs text-muted-foreground">
-                              {formatPayoutDate(payoutDate3)}
+                              {formatPaymentDate(payoutDate3)}
                             </div>
                             <div className="font-medium">
                               {Number(agent.payout_3 || 0).toLocaleString()} ₽
@@ -677,14 +810,24 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEdit(agent)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowClick(agent);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => handleEdit(agent, e)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDelete(agent.id)}
+                            onClick={(e) => handleDelete(agent.id, e)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -698,6 +841,13 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
           </Table>
         </div>
       </CardContent>
+
+      {/* Диалог с детальной информацией */}
+      <AgentDetailsDialog
+        agent={detailsAgent}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
     </Card>
   );
 };
