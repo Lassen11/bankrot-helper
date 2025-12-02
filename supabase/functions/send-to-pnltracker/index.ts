@@ -85,15 +85,19 @@ interface AgentPayoutPayload {
 type WebhookPayload = NewClientPayload | UpdateClientPayload | NewPaymentPayload | SyncSummaryPayload | AgentPayoutPayload;
 
 Deno.serve(async (req) => {
+  console.log('send-to-pnltracker function called, method:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const payload: WebhookPayload = await req.json();
     
-    console.log('Sending data to pnltracker:', payload);
+    console.log('Received payload event_type:', payload.event_type);
+    console.log('Full payload:', JSON.stringify(payload, null, 2));
 
     // Отправляем данные на webhook в pnltracker
     const response = await fetch(PNLTRACKER_WEBHOOK_URL, {
