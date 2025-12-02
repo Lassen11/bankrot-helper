@@ -30,6 +30,7 @@ interface PayoutAccountDialogProps {
   amount: number;
   date: Date | null;
   isLoading?: boolean;
+  showAccountSelect?: boolean;
 }
 
 export const PayoutAccountDialog = ({
@@ -40,7 +41,8 @@ export const PayoutAccountDialog = ({
   title,
   amount: initialAmount,
   date: initialDate,
-  isLoading = false
+  isLoading = false,
+  showAccountSelect = true
 }: PayoutAccountDialogProps) => {
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [amount, setAmount] = useState<number>(initialAmount);
@@ -56,7 +58,7 @@ export const PayoutAccountDialog = ({
   }, [open, initialAmount, initialDate]);
 
   const handleConfirm = () => {
-    if (selectedAccount && date) {
+    if (date && (showAccountSelect ? selectedAccount : true)) {
       onConfirm(selectedAccount, amount, date);
     }
   };
@@ -123,28 +125,30 @@ export const PayoutAccountDialog = ({
             </Popover>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="account">Счёт *</Label>
-            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите счёт" />
-              </SelectTrigger>
-              <SelectContent>
-                {ACCOUNT_OPTIONS.map((account) => (
-                  <SelectItem key={account} value={account}>
-                    {account}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {showAccountSelect && (
+            <div className="space-y-2">
+              <Label htmlFor="account">Счёт *</Label>
+              <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите счёт" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACCOUNT_OPTIONS.map((account) => (
+                    <SelectItem key={account} value={account}>
+                      {account}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isLoading}>
             Отмена
           </Button>
-          <Button onClick={handleConfirm} disabled={!selectedAccount || !date || amount <= 0 || isLoading}>
+          <Button onClick={handleConfirm} disabled={(showAccountSelect && !selectedAccount) || !date || amount <= 0 || isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
