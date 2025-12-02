@@ -35,12 +35,18 @@ interface Agent {
   payment_month_1_completed: boolean;
   payment_month_2_completed: boolean;
   payment_month_3_completed: boolean;
+  payment_month_1_date: string | null;
+  payment_month_2_date: string | null;
+  payment_month_3_date: string | null;
   payout_1: number;
   payout_2: number;
   payout_3: number;
   payout_1_completed: boolean;
   payout_2_completed: boolean;
   payout_3_completed: boolean;
+  payout_1_date: string | null;
+  payout_2_date: string | null;
+  payout_3_date: string | null;
 }
 
 interface Employee {
@@ -201,7 +207,11 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
 
   // Открытие диалога для платежа клиента
   const openPaymentDialog = (agent: Agent, paymentNumber: 1 | 2 | 3) => {
-    const paymentDate = calculatePaymentDate(agent.first_payment_date, paymentNumber - 1);
+    const dateKey = `payment_month_${paymentNumber}_date` as keyof Agent;
+    const savedDate = agent[dateKey] as string | null;
+    const paymentDate = savedDate 
+      ? new Date(savedDate) 
+      : calculatePaymentDate(agent.first_payment_date, paymentNumber - 1);
     const paymentKey = `payment_month_${paymentNumber}` as keyof Agent;
     const amount = Number(agent[paymentKey] || 0);
     
@@ -244,7 +254,11 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
 
   // Открытие диалога выбора счёта для выплаты
   const openPayoutDialog = (agent: Agent, payoutNumber: 1 | 2 | 3) => {
-    const payoutDate = calculatePayoutDate(agent.first_payment_date, payoutNumber - 1);
+    const dateKey = `payout_${payoutNumber}_date` as keyof Agent;
+    const savedDate = agent[dateKey] as string | null;
+    const payoutDate = savedDate 
+      ? new Date(savedDate) 
+      : calculatePayoutDate(agent.first_payment_date, payoutNumber - 1);
     const payoutKey = `payout_${payoutNumber}` as keyof Agent;
     const amount = Number(agent[payoutKey] || 0);
     
@@ -297,12 +311,15 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
         // Обработка платежа клиента
         const completedFieldName = `payment_month_${payoutNumber}_completed` as const;
         const amountFieldName = `payment_month_${payoutNumber}` as const;
+        const dateFieldName = `payment_month_${payoutNumber}_date` as const;
+        const dateValue = format(date, 'yyyy-MM-dd');
         
         const { error } = await supabase
           .from('agents')
           .update({ 
             [completedFieldName]: true,
-            [amountFieldName]: amount
+            [amountFieldName]: amount,
+            [dateFieldName]: dateValue
           })
           .eq('id', agentId);
 
@@ -311,7 +328,7 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
         // Обновляем локальное состояние
         setAgents(prev => prev.map(agent => 
           agent.id === agentId 
-            ? { ...agent, [completedFieldName]: true, [amountFieldName]: amount }
+            ? { ...agent, [completedFieldName]: true, [amountFieldName]: amount, [dateFieldName]: dateValue }
             : agent
         ));
 
@@ -320,20 +337,22 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
         // Обработка выплаты агенту
         const completedFieldName = `payout_${payoutNumber}_completed` as const;
         const amountFieldName = `payout_${payoutNumber}` as const;
+        const dateFieldName = `payout_${payoutNumber}_date` as const;
+        const payoutDate = format(date, 'yyyy-MM-dd');
         
-        // Обновляем статус и сумму в БД
+        // Обновляем статус, сумму и дату в БД
         const { error } = await supabase
           .from('agents')
           .update({ 
             [completedFieldName]: true,
-            [amountFieldName]: amount
+            [amountFieldName]: amount,
+            [dateFieldName]: payoutDate
           })
           .eq('id', agentId);
 
         if (error) throw error;
 
         // Отправляем данные в PnL Tracker
-        const payoutDate = format(date, 'yyyy-MM-dd');
         const description = `Выплата ${payoutNumber} агенту ${agentName}${recommendationName ? ` (рекомендация: ${recommendationName})` : ''}`;
 
         try {
@@ -366,7 +385,7 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
         // Обновляем локальное состояние
         setAgents(prev => prev.map(agent => 
           agent.id === agentId 
-            ? { ...agent, [completedFieldName]: true, [amountFieldName]: amount }
+            ? { ...agent, [completedFieldName]: true, [amountFieldName]: amount, [dateFieldName]: payoutDate }
             : agent
         ));
 
@@ -821,13 +840,25 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                 </TableRow>
               ) : (
                 filteredAgents.map((agent) => {
-                  const paymentDate1 = calculatePaymentDate(agent.first_payment_date, 1);
-                  const paymentDate2 = calculatePaymentDate(agent.first_payment_date, 2);
-                  const paymentDate3 = calculatePaymentDate(agent.first_payment_date, 3);
-                  const payoutDate1 = calculatePayoutDate(agent.first_payment_date, 0);
-                  const payoutDate2 = calculatePayoutDate(agent.first_payment_date, 1);
-                  const payoutDate3 = calculatePayoutDate(agent.first_payment_date, 2);
-
+                  // Используем сохранённую дату если есть, иначе вычисляем
+                  const paymentDate1 = agent.payment_month_1_date 
+                    ? new Date(agent.payment_month_1_date) 
+                    : calculatePaymentDate(agent.first_payment_date, 1);
+                  const paymentDate2 = agent.payment_month_2_date 
+                    ? new Date(agent.payment_month_2_date) 
+                    : calculatePaymentDate(agent.first_payment_date, 2);
+                  const paymentDate3 = agent.payment_month_3_date 
+                    ? new Date(agent.payment_month_3_date) 
+                    : calculatePaymentDate(agent.first_payment_date, 3);
+                  const payoutDate1 = agent.payout_1_date 
+                    ? new Date(agent.payout_1_date) 
+                    : calculatePayoutDate(agent.first_payment_date, 0);
+                  const payoutDate2 = agent.payout_2_date 
+                    ? new Date(agent.payout_2_date) 
+                    : calculatePayoutDate(agent.first_payment_date, 1);
+                  const payoutDate3 = agent.payout_3_date 
+                    ? new Date(agent.payout_3_date) 
+                    : calculatePayoutDate(agent.first_payment_date, 2);
                   return (
                     <TableRow 
                       key={agent.id} 

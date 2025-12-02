@@ -28,16 +28,22 @@ export type Database = {
           mop_name: string | null
           payment_month_1: number | null
           payment_month_1_completed: boolean
+          payment_month_1_date: string | null
           payment_month_2: number | null
           payment_month_2_completed: boolean
+          payment_month_2_date: string | null
           payment_month_3: number | null
           payment_month_3_completed: boolean
+          payment_month_3_date: string | null
           payout_1: number | null
           payout_1_completed: boolean
+          payout_1_date: string | null
           payout_2: number | null
           payout_2_completed: boolean
+          payout_2_date: string | null
           payout_3: number | null
           payout_3_completed: boolean
+          payout_3_date: string | null
           recommendation_name: string | null
           remaining_payment: number | null
           reward_amount: number | null
@@ -56,16 +62,22 @@ export type Database = {
           mop_name?: string | null
           payment_month_1?: number | null
           payment_month_1_completed?: boolean
+          payment_month_1_date?: string | null
           payment_month_2?: number | null
           payment_month_2_completed?: boolean
+          payment_month_2_date?: string | null
           payment_month_3?: number | null
           payment_month_3_completed?: boolean
+          payment_month_3_date?: string | null
           payout_1?: number | null
           payout_1_completed?: boolean
+          payout_1_date?: string | null
           payout_2?: number | null
           payout_2_completed?: boolean
+          payout_2_date?: string | null
           payout_3?: number | null
           payout_3_completed?: boolean
+          payout_3_date?: string | null
           recommendation_name?: string | null
           remaining_payment?: number | null
           reward_amount?: number | null
@@ -84,16 +96,22 @@ export type Database = {
           mop_name?: string | null
           payment_month_1?: number | null
           payment_month_1_completed?: boolean
+          payment_month_1_date?: string | null
           payment_month_2?: number | null
           payment_month_2_completed?: boolean
+          payment_month_2_date?: string | null
           payment_month_3?: number | null
           payment_month_3_completed?: boolean
+          payment_month_3_date?: string | null
           payout_1?: number | null
           payout_1_completed?: boolean
+          payout_1_date?: string | null
           payout_2?: number | null
           payout_2_completed?: boolean
+          payout_2_date?: string | null
           payout_3?: number | null
           payout_3_completed?: boolean
+          payout_3_date?: string | null
           recommendation_name?: string | null
           remaining_payment?: number | null
           reward_amount?: number | null
