@@ -59,6 +59,8 @@ interface PayoutDialogData {
   payoutNumber: 1 | 2 | 3;
   amount: number;
   date: Date | null;
+  title: string;
+  type: 'payout' | 'payment';
 }
 
 type PayoutFilter = 'all' | 'pending_1' | 'pending_2' | 'pending_3' | 'all_pending' | 'all_completed' | 'payment_pending_1' | 'payment_pending_2' | 'payment_pending_3';
@@ -197,24 +199,43 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
     }
   });
 
-  const handlePaymentToggle = async (agentId: string, paymentNumber: 1 | 2 | 3, currentValue: boolean) => {
+  // Открытие диалога для платежа клиента
+  const openPaymentDialog = (agent: Agent, paymentNumber: 1 | 2 | 3) => {
+    const paymentDate = calculatePaymentDate(agent.first_payment_date, paymentNumber - 1);
+    const paymentKey = `payment_month_${paymentNumber}` as keyof Agent;
+    const amount = Number(agent[paymentKey] || 0);
+    
+    setPayoutDialogData({
+      agentId: agent.id,
+      agentName: agent.agent_full_name,
+      recommendationName: agent.recommendation_name || '',
+      payoutNumber: paymentNumber,
+      amount,
+      date: paymentDate,
+      title: `Платеж ${paymentNumber} месяц`,
+      type: 'payment'
+    });
+    setPayoutDialogOpen(true);
+  };
+
+  // Снятие отметки платежа (без диалога)
+  const handlePaymentUnmark = async (agentId: string, paymentNumber: 1 | 2 | 3) => {
     try {
       const fieldName = `payment_month_${paymentNumber}_completed` as const;
       const { error } = await supabase
         .from('agents')
-        .update({ [fieldName]: !currentValue })
+        .update({ [fieldName]: false })
         .eq('id', agentId);
 
       if (error) throw error;
 
-      // Обновляем локальное состояние
       setAgents(prev => prev.map(agent => 
         agent.id === agentId 
-          ? { ...agent, [fieldName]: !currentValue }
+          ? { ...agent, [fieldName]: false }
           : agent
       ));
 
-      toast.success(`Платеж ${paymentNumber} ${!currentValue ? 'отмечен' : 'снят'}`);
+      toast.success(`Отметка платежа ${paymentNumber} снята`);
     } catch (error) {
       console.error('Error updating payment status:', error);
       toast.error('Ошибка при обновлении статуса платежа');
@@ -233,7 +254,9 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
       recommendationName: agent.recommendation_name || '',
       payoutNumber,
       amount,
-      date: payoutDate
+      date: payoutDate,
+      title: `Выплата ${payoutNumber}`,
+      type: 'payout'
     });
     setPayoutDialogOpen(true);
   };
@@ -262,67 +285,99 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
     }
   };
 
-  // Подтверждение выплаты с выбранным счётом
-  const handlePayoutConfirm = async (account: string) => {
+  // Подтверждение платежа/выплаты с выбранным счётом
+  const handleDialogConfirm = async (account: string, amount: number, date: Date) => {
     if (!payoutDialogData || !user) return;
 
     setIsPayoutLoading(true);
     try {
-      const { agentId, agentName, recommendationName, payoutNumber, amount, date } = payoutDialogData;
-      const fieldName = `payout_${payoutNumber}_completed` as const;
+      const { agentId, agentName, recommendationName, payoutNumber, type } = payoutDialogData;
       
-      // Обновляем статус в БД
-      const { error } = await supabase
-        .from('agents')
-        .update({ [fieldName]: true })
-        .eq('id', agentId);
+      if (type === 'payment') {
+        // Обработка платежа клиента
+        const completedFieldName = `payment_month_${payoutNumber}_completed` as const;
+        const amountFieldName = `payment_month_${payoutNumber}` as const;
+        
+        const { error } = await supabase
+          .from('agents')
+          .update({ 
+            [completedFieldName]: true,
+            [amountFieldName]: amount
+          })
+          .eq('id', agentId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Отправляем данные в PnL Tracker
-      const payoutDate = date ? format(date, 'yyyy-MM-dd') : new Date().toISOString().split('T')[0];
-      const description = `Выплата ${payoutNumber} агенту ${agentName}${recommendationName ? ` (рекомендация: ${recommendationName})` : ''}`;
+        // Обновляем локальное состояние
+        setAgents(prev => prev.map(agent => 
+          agent.id === agentId 
+            ? { ...agent, [completedFieldName]: true, [amountFieldName]: amount }
+            : agent
+        ));
 
-      try {
-        const { error: webhookError } = await supabase.functions.invoke('send-to-pnltracker', {
-          body: {
-            event_type: 'agent_payout',
-            agent_name: agentName,
-            recommendation_name: recommendationName,
-            payout_number: payoutNumber,
-            amount: amount,
-            date: payoutDate,
-            expense_account: account,
-            company: 'Спасение',
-            user_id: user.id,
-            description: description
+        toast.success(`Платеж ${payoutNumber} отмечен`);
+      } else {
+        // Обработка выплаты агенту
+        const completedFieldName = `payout_${payoutNumber}_completed` as const;
+        const amountFieldName = `payout_${payoutNumber}` as const;
+        
+        // Обновляем статус и сумму в БД
+        const { error } = await supabase
+          .from('agents')
+          .update({ 
+            [completedFieldName]: true,
+            [amountFieldName]: amount
+          })
+          .eq('id', agentId);
+
+        if (error) throw error;
+
+        // Отправляем данные в PnL Tracker
+        const payoutDate = format(date, 'yyyy-MM-dd');
+        const description = `Выплата ${payoutNumber} агенту ${agentName}${recommendationName ? ` (рекомендация: ${recommendationName})` : ''}`;
+
+        try {
+          const { error: webhookError } = await supabase.functions.invoke('send-to-pnltracker', {
+            body: {
+              event_type: 'agent_payout',
+              agent_name: agentName,
+              recommendation_name: recommendationName,
+              payout_number: payoutNumber,
+              amount: amount,
+              date: payoutDate,
+              expense_account: account,
+              company: 'Спасение',
+              user_id: user.id,
+              description: description
+            }
+          });
+
+          if (webhookError) {
+            console.error('Error sending to pnltracker:', webhookError);
+            toast.warning('Выплата отмечена, но ошибка при отправке в PnL Tracker');
+          } else {
+            console.log('Successfully sent agent payout to pnltracker');
           }
-        });
-
-        if (webhookError) {
-          console.error('Error sending to pnltracker:', webhookError);
+        } catch (webhookError) {
+          console.error('Error calling send-to-pnltracker:', webhookError);
           toast.warning('Выплата отмечена, но ошибка при отправке в PnL Tracker');
-        } else {
-          console.log('Successfully sent agent payout to pnltracker');
         }
-      } catch (webhookError) {
-        console.error('Error calling send-to-pnltracker:', webhookError);
-        toast.warning('Выплата отмечена, но ошибка при отправке в PnL Tracker');
+
+        // Обновляем локальное состояние
+        setAgents(prev => prev.map(agent => 
+          agent.id === agentId 
+            ? { ...agent, [completedFieldName]: true, [amountFieldName]: amount }
+            : agent
+        ));
+
+        toast.success(`Выплата ${payoutNumber} отмечена и отправлена в PnL Tracker`);
       }
 
-      // Обновляем локальное состояние
-      setAgents(prev => prev.map(agent => 
-        agent.id === agentId 
-          ? { ...agent, [fieldName]: true }
-          : agent
-      ));
-
-      toast.success(`Выплата ${payoutNumber} отмечена и отправлена в PnL Tracker`);
       setPayoutDialogOpen(false);
       setPayoutDialogData(null);
     } catch (error) {
-      console.error('Error confirming payout:', error);
-      toast.error('Ошибка при подтверждении выплаты');
+      console.error('Error confirming:', error);
+      toast.error('Ошибка при подтверждении');
     } finally {
       setIsPayoutLoading(false);
     }
@@ -792,7 +847,13 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                         <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={agent.payment_month_1_completed}
-                            onCheckedChange={() => handlePaymentToggle(agent.id, 1, agent.payment_month_1_completed)}
+                            onCheckedChange={() => {
+                              if (agent.payment_month_1_completed) {
+                                handlePaymentUnmark(agent.id, 1);
+                              } else {
+                                openPaymentDialog(agent, 1);
+                              }
+                            }}
                             disabled={agent.payment_month_1 === 0}
                           />
                           <div className={`text-center ${agent.payment_month_1_completed ? 'text-green-600 line-through' : ''}`}>
@@ -811,7 +872,13 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                         <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={agent.payment_month_2_completed}
-                            onCheckedChange={() => handlePaymentToggle(agent.id, 2, agent.payment_month_2_completed)}
+                            onCheckedChange={() => {
+                              if (agent.payment_month_2_completed) {
+                                handlePaymentUnmark(agent.id, 2);
+                              } else {
+                                openPaymentDialog(agent, 2);
+                              }
+                            }}
                             disabled={agent.payment_month_2 === 0}
                           />
                           <div className={`text-center ${agent.payment_month_2_completed ? 'text-green-600 line-through' : ''}`}>
@@ -830,7 +897,13 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
                         <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={agent.payment_month_3_completed}
-                            onCheckedChange={() => handlePaymentToggle(agent.id, 3, agent.payment_month_3_completed)}
+                            onCheckedChange={() => {
+                              if (agent.payment_month_3_completed) {
+                                handlePaymentUnmark(agent.id, 3);
+                              } else {
+                                openPaymentDialog(agent, 3);
+                              }
+                            }}
                             disabled={agent.payment_month_3 === 0}
                           />
                           <div className={`text-center ${agent.payment_month_3_completed ? 'text-green-600 line-through' : ''}`}>
@@ -963,13 +1036,13 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
         onOpenChange={setDetailsOpen}
       />
 
-      {/* Диалог выбора счёта для выплаты */}
+      {/* Диалог выбора счёта для платежа/выплаты */}
       <PayoutAccountDialog
         open={payoutDialogOpen}
         onOpenChange={setPayoutDialogOpen}
-        onConfirm={handlePayoutConfirm}
+        onConfirm={handleDialogConfirm}
         agentName={payoutDialogData?.agentName || ''}
-        payoutNumber={payoutDialogData?.payoutNumber || 1}
+        title={payoutDialogData?.title || ''}
         amount={payoutDialogData?.amount || 0}
         date={payoutDialogData?.date || null}
         isLoading={isPayoutLoading}
