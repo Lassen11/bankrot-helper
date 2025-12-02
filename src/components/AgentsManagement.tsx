@@ -1046,6 +1046,7 @@ export const AgentsManagement = ({ isAdmin = false }: AgentsManagementProps) => 
         amount={payoutDialogData?.amount || 0}
         date={payoutDialogData?.date || null}
         isLoading={isPayoutLoading}
+        showAccountSelect={payoutDialogData?.type === 'payout'}
       />
     </Card>
   );
