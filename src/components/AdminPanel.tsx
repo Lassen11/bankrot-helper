@@ -114,37 +114,72 @@ export const AdminPanel = () => {
       // Подсчитываем только сотрудников (исключаем администраторов)
       const employeeCount = userRoles?.filter(ur => ur.role === 'employee').length || 0;
 
-      // Получаем всех клиентов или только клиентов выбранного сотрудника (исключая расторгнутых и приостановленных)
-      let clientsQuery = supabase
-        .from('clients')
-        .select('contract_amount, total_paid, id, monthly_payment, contract_date')
-        .eq('is_terminated', false)
-        .eq('is_suspended', false);
-
-      // Фильтруем по сотруднику если выбран
-      if (selectedEmployee !== 'all') {
-        clientsQuery = clientsQuery.eq('user_id', selectedEmployee);
-      }
-
-      const { data: clients, error: clientsError } = await clientsQuery;
-
-      if (clientsError) throw clientsError;
-
-      const totalClients = clients?.length || 0;
-      const totalContractAmount = clients?.reduce((sum, client) => sum + (client.contract_amount || 0), 0) || 0;
-      const activeCases = clients?.filter(client => {
-        const totalPaid = client.total_paid || 0;
-        const contractAmount = client.contract_amount || 0;
-        return totalPaid < contractAmount;
-      }).length || 0;
-
-      // Получаем новых клиентов за текущий месяц
+      // Даты выбранного периода
       const year = parseInt(selectedYear);
       const month = parseInt(selectedMonth);
       const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDay = new Date(year, month, 0).getDate();
       const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
 
+      // Получаем всех клиентов (включая приостановленных/расторгнутых)
+      let allClientsQuery = supabase
+        .from('clients')
+        .select('contract_amount, total_paid, id, monthly_payment, contract_date, is_terminated, is_suspended, terminated_at, suspended_at');
+
+      // Фильтруем по сотруднику если выбран
+      if (selectedEmployee !== 'all') {
+        allClientsQuery = allClientsQuery.eq('user_id', selectedEmployee);
+      }
+
+      const { data: allClients, error: clientsError } = await allClientsQuery;
+
+      if (clientsError) throw clientsError;
+
+      // Фильтруем клиентов для выбранного месяца:
+      // - активные клиенты включаются
+      // - приостановленные/расторгнутые включаются, если дата действия позже выбранного месяца
+      const clients = allClients?.filter(client => {
+        // Если клиент активен - включаем
+        if (!client.is_terminated && !client.is_suspended) {
+          return true;
+        }
+        
+        // Если расторгнут - проверяем дату расторжения
+        if (client.is_terminated && client.terminated_at) {
+          const terminatedDate = new Date(client.terminated_at);
+          const terminatedMonth = terminatedDate.getMonth() + 1;
+          const terminatedYear = terminatedDate.getFullYear();
+          // Включаем если расторжение произошло в будущем месяце относительно выбранного
+          if (terminatedYear > year || (terminatedYear === year && terminatedMonth > month)) {
+            return true;
+          }
+          return false;
+        }
+        
+        // Если приостановлен - проверяем дату приостановки
+        if (client.is_suspended && client.suspended_at) {
+          const suspendedDate = new Date(client.suspended_at);
+          const suspendedMonth = suspendedDate.getMonth() + 1;
+          const suspendedYear = suspendedDate.getFullYear();
+          // Включаем если приостановка произошла в будущем месяце относительно выбранного
+          if (suspendedYear > year || (suspendedYear === year && suspendedMonth > month)) {
+            return true;
+          }
+          return false;
+        }
+        
+        return false;
+      }) || [];
+
+      const totalClients = clients.length;
+      const totalContractAmount = clients.reduce((sum, client) => sum + (client.contract_amount || 0), 0);
+      const activeCases = clients.filter(client => {
+        const totalPaid = client.total_paid || 0;
+        const contractAmount = client.contract_amount || 0;
+        return totalPaid < contractAmount;
+      }).length;
+
+      // Получаем новых клиентов за выбранный месяц (без фильтра по статусу - новые клиенты учитываются независимо)
       let newClientsQuery = supabase
         .from('clients')
         .select('id, monthly_payment')
@@ -159,25 +194,27 @@ export const AdminPanel = () => {
       const newClientsCount = newClients?.length || 0;
       const newClientsMonthlyPaymentSum = newClients?.reduce((sum, client) => sum + (client.monthly_payment || 0), 0) || 0;
 
-      // Получаем завершенных клиентов за текущий месяц
+      // Получаем завершенных клиентов за выбранный месяц
       // Клиент считается завершенным если total_paid >= contract_amount и последний платеж был в этом месяце
       let completedClientsQuery = supabase
         .from('clients')
-        .select('id, total_paid, contract_amount, monthly_payment')
-        .gte('total_paid', 'contract_amount')
-        .eq('is_terminated', false)
-        .eq('is_suspended', false);
+        .select('id, total_paid, contract_amount, monthly_payment');
 
       if (selectedEmployee !== 'all') {
         completedClientsQuery = completedClientsQuery.eq('user_id', selectedEmployee);
       }
 
-      const { data: potentiallyCompletedClients } = await completedClientsQuery;
+      const { data: allClientsForCompletion } = await completedClientsQuery;
+      
+      // Фильтруем только тех, у кого total_paid >= contract_amount
+      const potentiallyCompletedClients = allClientsForCompletion?.filter(c => 
+        (c.total_paid || 0) >= (c.contract_amount || 0)
+      ) || [];
 
       // Проверяем, какие из завершенных клиентов завершились именно в этом месяце
       let completedThisMonthCount = 0;
       let completedClientsMonthlyPaymentSum = 0;
-      if (potentiallyCompletedClients && potentiallyCompletedClients.length > 0) {
+      if (potentiallyCompletedClients.length > 0) {
         const clientIds = potentiallyCompletedClients.map(c => c.id);
         
         // Получаем последний завершенный платеж для каждого клиента
@@ -207,8 +244,8 @@ export const AdminPanel = () => {
         .lte('due_date', endDateStr)
         .neq('payment_number', 0);
 
-      // Фильтруем по клиентам если выбран сотрудник
-      if (clients && clients.length > 0) {
+      // Фильтруем по клиентам выбранного периода
+      if (clients.length > 0) {
         const clientIds = clients.map(c => c.id);
         paymentsQuery = paymentsQuery.in('client_id', clientIds);
       }
@@ -218,7 +255,7 @@ export const AdminPanel = () => {
       if (paymentsError) throw paymentsError;
 
       // Создаем Map клиентов для быстрого доступа к monthly_payment и contract_date
-      const clientsMap = new Map(clients?.map(c => [c.id, { monthly_payment: c.monthly_payment, contract_date: c.contract_date }]) || []);
+      const clientsMap = new Map(clients.map(c => [c.id, { monthly_payment: c.monthly_payment, contract_date: c.contract_date }]));
 
       // Подсчитываем уникальных клиентов с платежами
       const uniqueClientsWithPayments = new Set<string>();
@@ -232,12 +269,12 @@ export const AdminPanel = () => {
       });
 
       // Плановая сумма = сумма monthly_payment клиентов с платежами в этом месяце,
-      // исключая новых клиентов (созданных в текущем месяце)
+      // исключая новых клиентов (созданных в выбранном месяце)
       let totalPaymentsSum = 0;
       uniqueClientsWithPayments.forEach(clientId => {
         const clientData = clientsMap.get(clientId);
         if (clientData) {
-          // Проверяем, что клиент не новый (дата договора не в текущем месяце)
+          // Проверяем, что клиент не новый (дата договора не в выбранном месяце)
           const contractDate = new Date(clientData.contract_date);
           const currentMonth = new Date(year, month - 1, 1);
           const isNewClient = contractDate >= currentMonth && 
@@ -356,24 +393,53 @@ export const AdminPanel = () => {
 
       // Получаем клиентов для каждого сотрудника
       const stats: EmployeeStats[] = [];
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
       
       if (userRoles) {
         for (const userRole of userRoles) {
-          const { data: clients, error: clientsError } = await supabase
+          const { data: allClients, error: clientsError } = await supabase
             .from('clients')
-            .select('contract_amount, total_paid')
-            .eq('user_id', userRole.user_id)
-            .eq('is_terminated', false)
-            .eq('is_suspended', false);
+            .select('contract_amount, total_paid, is_terminated, is_suspended, terminated_at, suspended_at')
+            .eq('user_id', userRole.user_id);
 
           if (clientsError) {
             console.error(`Ошибка загрузки клиентов для пользователя ${userRole.user_id}:`, clientsError);
             continue;
           }
 
+          // Фильтруем клиентов по текущему месяцу
+          const clientsData = (allClients || []).filter(client => {
+            if (!client.is_terminated && !client.is_suspended) {
+              return true;
+            }
+            
+            if (client.is_terminated && client.terminated_at) {
+              const terminatedDate = new Date(client.terminated_at);
+              const terminatedMonth = terminatedDate.getMonth() + 1;
+              const terminatedYear = terminatedDate.getFullYear();
+              if (terminatedYear > currentYear || (terminatedYear === currentYear && terminatedMonth > currentMonth)) {
+                return true;
+              }
+              return false;
+            }
+            
+            if (client.is_suspended && client.suspended_at) {
+              const suspendedDate = new Date(client.suspended_at);
+              const suspendedMonth = suspendedDate.getMonth() + 1;
+              const suspendedYear = suspendedDate.getFullYear();
+              if (suspendedYear > currentYear || (suspendedYear === currentYear && suspendedMonth > currentMonth)) {
+                return true;
+              }
+              return false;
+            }
+            
+            return false;
+          });
+
           const authUser = authUsers?.find((u: any) => u.id === userRole.user_id);
           const profile = profiles?.find(p => p.user_id === userRole.user_id);
-          const clientsData = clients || [];
           const totalContractAmount = clientsData.reduce((sum: number, client: any) => sum + (client.contract_amount || 0), 0);
           const activeCases = clientsData.filter((client: any) => {
             const totalPaid = client.total_paid || 0;
