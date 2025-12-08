@@ -42,25 +42,68 @@ const Index = () => {
     if (!user) return;
     
     try {
+      // Получаем текущий месяц для фильтрации
+      const currentDate = new Date();
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1;
+      const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDay = new Date(year, month, 0).getDate();
+      const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+      
+      // Получаем всех клиентов (включая приостановленных/расторгнутых)
       let query = supabase
         .from('clients')
-        .select('contract_amount, total_paid, id, monthly_payment, contract_date')
-        .eq('is_terminated', false)
-        .eq('is_suspended', false);
+        .select('contract_amount, total_paid, id, monthly_payment, contract_date, is_terminated, is_suspended, terminated_at, suspended_at');
       
       // Если не админ, показываем только своих клиентов
       if (!isAdmin) {
         query = query.eq('user_id', user.id);
       }
       
-      const { data: clients, error } = await query;
+      const { data: allClients, error } = await query;
 
       if (error) {
         console.error('Ошибка загрузки метрик:', error);
         return;
       }
 
-      if (clients) {
+      if (allClients) {
+        // Фильтруем клиентов для текущего месяца:
+        // - активные клиенты включаются
+        // - приостановленные/расторгнутые включаются, если дата действия позже текущего месяца
+        const clients = allClients.filter(client => {
+          // Если клиент активен - включаем
+          if (!client.is_terminated && !client.is_suspended) {
+            return true;
+          }
+          
+          // Если расторгнут - проверяем дату расторжения
+          if (client.is_terminated && client.terminated_at) {
+            const terminatedDate = new Date(client.terminated_at);
+            const terminatedMonth = terminatedDate.getMonth() + 1;
+            const terminatedYear = terminatedDate.getFullYear();
+            // Включаем если расторжение произошло в будущем месяце относительно текущего
+            if (terminatedYear > year || (terminatedYear === year && terminatedMonth > month)) {
+              return true;
+            }
+            return false;
+          }
+          
+          // Если приостановлен - проверяем дату приостановки
+          if (client.is_suspended && client.suspended_at) {
+            const suspendedDate = new Date(client.suspended_at);
+            const suspendedMonth = suspendedDate.getMonth() + 1;
+            const suspendedYear = suspendedDate.getFullYear();
+            // Включаем если приостановка произошла в будущем месяце относительно текущего
+            if (suspendedYear > year || (suspendedYear === year && suspendedMonth > month)) {
+              return true;
+            }
+            return false;
+          }
+          
+          return false;
+        });
+
         const totalClients = clients.length;
         const totalContractAmount = clients.reduce((sum, client) => sum + (client.contract_amount || 0), 0);
         const activeCases = clients.filter(client => {
@@ -69,15 +112,7 @@ const Index = () => {
           return totalPaid < contractAmount; // Активные дела - где еще есть задолженность
         }).length;
 
-        // Получаем платежи за текущий месяц для клиентов сотрудника
-        const currentDate = new Date();
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
-        const endDay = new Date(year, month, 0).getDate();
-        const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
-
-        // Всегда фильтруем платежи по активным клиентам (исключая terminated и suspended)
+        // Всегда фильтруем платежи по активным клиентам
         const clientIds = clients.map(c => c.id);
         
         const paymentsQuery = supabase
