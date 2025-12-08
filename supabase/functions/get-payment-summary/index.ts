@@ -25,8 +25,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const url = new URL(req.url);
+    const employeeId = url.searchParams.get('employee_id');
+    const monthParam = url.searchParams.get('month'); // Format: YYYY-MM
+
     console.log('get-payment-summary called', { 
-      hasEmployeeId: !!new URL(req.url).searchParams.get('employee_id')
+      hasEmployeeId: !!employeeId,
+      monthParam: monthParam
     });
 
     // Initialize Supabase client with service role key for admin access
@@ -34,40 +39,91 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get optional employee_id from query params
-    const url = new URL(req.url);
-    const employeeId = url.searchParams.get('employee_id');
+    // Parse month parameter or use current month
+    let year: number;
+    let month: number;
+    
+    if (monthParam) {
+      const [yearStr, monthStr] = monthParam.split('-');
+      year = parseInt(yearStr, 10);
+      month = parseInt(monthStr, 10);
+      
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        console.error('Invalid month parameter:', monthParam);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Invalid month parameter. Use format YYYY-MM' 
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    } else {
+      const currentDate = new Date();
+      year = currentDate.getFullYear();
+      month = currentDate.getMonth() + 1;
+    }
 
-    console.log('Fetching payment summary', employeeId ? `for employee: ${employeeId}` : 'for all employees');
+    const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+    console.log('Fetching payment summary', employeeId ? `for employee: ${employeeId}` : 'for all employees', `for month: ${monthStr}`);
 
-    // Get current month date range (use date strings to avoid timezone issues)
-    const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
+    // Get month date range (use date strings to avoid timezone issues)
     const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDay = new Date(year, month, 0).getDate();
     const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
 
-    // Get active clients with monthly_payment and contract_date
+    // Get all clients (we'll filter suspended/terminated based on date)
     let clientsQuery = supabase
       .from('clients')
-      .select('id, user_id, monthly_payment, contract_date')
-      .eq('is_terminated', false)
-      .eq('is_suspended', false);
+      .select('id, user_id, monthly_payment, contract_date, is_terminated, is_suspended, terminated_at, suspended_at');
 
     if (employeeId) {
       clientsQuery = clientsQuery.eq('user_id', employeeId);
     }
 
-    const { data: clients, error: clientsError } = await clientsQuery;
+    const { data: allClients, error: clientsError } = await clientsQuery;
 
     if (clientsError) {
       console.error('Error fetching clients:', clientsError);
       throw clientsError;
     }
 
+    // Filter clients: include if active OR if terminated/suspended after the target month
+    const targetMonthStart = new Date(year, month - 1, 1);
+    const clients = (allClients || []).filter(client => {
+      // If client is not terminated and not suspended, include them
+      if (!client.is_terminated && !client.is_suspended) {
+        return true;
+      }
+      
+      // If terminated, check if termination was after the target month
+      if (client.is_terminated && client.terminated_at) {
+        const terminatedDate = new Date(client.terminated_at);
+        const terminatedMonth = new Date(terminatedDate.getFullYear(), terminatedDate.getMonth(), 1);
+        // Include if termination month is after target month
+        if (terminatedMonth > targetMonthStart) {
+          return true;
+        }
+      }
+      
+      // If suspended, check if suspension was after the target month
+      if (client.is_suspended && client.suspended_at) {
+        const suspendedDate = new Date(client.suspended_at);
+        const suspendedMonth = new Date(suspendedDate.getFullYear(), suspendedDate.getMonth(), 1);
+        // Include if suspension month is after target month
+        if (suspendedMonth > targetMonthStart) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
+
     if (!clients || clients.length === 0) {
-      console.log('No active clients found');
+      console.log('No active clients found for month:', monthStr);
       return new Response(
         JSON.stringify({
           success: true,
@@ -76,7 +132,7 @@ Deno.serve(async (req) => {
             completed_payments_sum: 0,
             total_payments_count: 0,
             completed_payments_count: 0,
-            month: currentDate.toISOString().slice(0, 7),
+            month: monthStr,
             ...(employeeId && { employee_id: employeeId }),
           },
         } as PaymentSummaryResponse),
@@ -87,7 +143,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get payments for current month
+    // Get payments for target month
     const clientIds = clients.map(c => c.id);
     
     const { data: payments, error: paymentsError } = await supabase
@@ -120,15 +176,15 @@ Deno.serve(async (req) => {
     }
 
     // Planned sum = sum of monthly_payment for clients with payments this month,
-    // excluding new clients (created in current month)
+    // excluding new clients (created in target month)
     let totalPaymentsSum = 0;
     uniqueClientsWithPayments.forEach(clientId => {
       const clientData = clientsMap.get(clientId);
       if (clientData) {
-        // Check that client is not new (contract date not in current month)
+        // Check that client is not new (contract date not in target month)
         const contractDate = new Date(clientData.contract_date);
-        const currentMonth = new Date(year, month - 1, 1);
-        const isNewClient = contractDate >= currentMonth && 
+        const targetMonth = new Date(year, month - 1, 1);
+        const isNewClient = contractDate >= targetMonth && 
                            contractDate.getMonth() === month - 1 &&
                            contractDate.getFullYear() === year;
         
@@ -159,7 +215,7 @@ Deno.serve(async (req) => {
         completed_payments_sum: Math.round(completedPaymentsSum * 100) / 100,
         total_payments_count: totalPaymentsCount,
         completed_payments_count: completedPaymentsCount,
-        month: currentDate.toISOString().slice(0, 7),
+        month: monthStr,
         ...(employeeId && { employee_id: employeeId }),
       },
     };
