@@ -150,6 +150,14 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
     setIsDialogOpen(true);
   };
 
+  const handleDialogClose = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      // Обновляем список клиентов при закрытии диалога
+      fetchClients();
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -167,7 +175,7 @@ export const ClientsList = ({ refresh }: ClientsListProps) => {
       <ClientDetailsDialog 
         clientId={selectedClientId}
         open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        onOpenChange={handleDialogClose}
       />
       <div className="space-y-6">
       <div className="relative">
