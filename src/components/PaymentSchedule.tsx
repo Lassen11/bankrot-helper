@@ -9,9 +9,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-
 interface PaymentScheduleProps {
   clientId: string;
   contractAmount: number;
@@ -56,6 +56,7 @@ export const PaymentSchedule = ({
   onPaymentUpdate
 }: PaymentScheduleProps) => {
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [editingPayment, setEditingPayment] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState<number>(0);
@@ -162,6 +163,13 @@ export const PaymentSchedule = ({
     if (!payment) return;
 
     const newCompletedStatus = !payment.is_completed;
+    
+    // Сотрудники не могут отменять платежи, только отмечать как выполненные
+    if (!newCompletedStatus && !isAdmin) {
+      toast.error('Только администратор может отменить платеж');
+      return;
+    }
+    
     const paymentAmount = payment.custom_amount ?? payment.original_amount;
 
     // Сначала сохраняем все изменения платежа (сумма, дата, счет)
