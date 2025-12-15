@@ -459,6 +459,18 @@ export const ImportExportPanel = () => {
         return;
       }
 
+      // Получаем имена сотрудников для created_by
+      const employeeIds = [...new Set(clients.map(c => c.employee_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', employeeIds);
+
+      const profilesMap = (profiles || []).reduce((acc, profile) => {
+        acc[profile.user_id] = profile.full_name || 'Без имени';
+        return acc;
+      }, {} as Record<string, string>);
+
       // Формируем payload
       const clientsData = clients.map(client => ({
         full_name: client.full_name,
@@ -469,7 +481,9 @@ export const ImportExportPanel = () => {
         contract_date: client.contract_date,
         source: client.source || '',
         city: client.city || '',
-        manager: client.manager || ''
+        manager: client.manager || '',
+        created_by: client.employee_id ? profilesMap[client.employee_id] || '' : '',
+        total_paid: client.total_paid || 0
       }));
 
       const { data: fnData, error: functionError } = await supabase.functions.invoke('send-to-pnltracker', {
