@@ -1,4 +1,4 @@
-import { Scale, LogOut, User, History } from "lucide-react";
+import { Scale, LogOut, User, History, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -28,12 +28,20 @@ export const Header = () => {
               {user?.email}
             </span>
             {isAdmin && (
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/payment-history">
-                  <History className="h-4 w-4 mr-2" />
-                  История изменений
-                </Link>
-              </Button>
+              <>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/admin/clients">
+                    <Users className="h-4 w-4 mr-2" />
+                    Клиенты
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/payment-history">
+                    <History className="h-4 w-4 mr-2" />
+                    История изменений
+                  </Link>
+                </Button>
+              </>
             )}
             <Button variant="outline" size="sm" asChild>
               <Link to="/profile">
