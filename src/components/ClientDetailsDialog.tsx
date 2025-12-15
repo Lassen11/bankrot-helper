@@ -259,11 +259,14 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
         ? calculateFromContractAmount() 
         : editedClient.monthly_payment;
 
+      const newContractDate = editedContractDate ? format(editedContractDate, 'yyyy-MM-dd') : client.contract_date;
+      
       const updateData = {
         ...editedClient,
         contract_amount: finalContractAmount,
         monthly_payment: finalMonthlyPayment,
-        contract_date: editedContractDate ? format(editedContractDate, 'yyyy-MM-dd') : client.contract_date
+        contract_date: newContractDate,
+        ...(contractDateChanged && { created_at: newContractDate })
       };
 
       const { error } = await supabase
