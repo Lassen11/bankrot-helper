@@ -39,8 +39,13 @@ export const ImportExportPanel = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncingClients, setIsSyncingClients] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [syncMonth, setSyncMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -413,9 +418,99 @@ export const ImportExportPanel = () => {
     }
   };
 
+  const handleSyncClientsFull = async () => {
+    setIsSyncingClients(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Ошибка авторизации",
+          description: "Пользователь не авторизован",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Получаем клиентов за выбранный месяц
+      const monthStart = `${syncMonth}-01`;
+      const [year, monthNum] = syncMonth.split('-').map(Number);
+      const nextMonth = monthNum === 12 ? 1 : monthNum + 1;
+      const nextYear = monthNum === 12 ? year + 1 : year;
+      const monthEnd = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('*')
+        .gte('contract_date', monthStart)
+        .lt('contract_date', monthEnd)
+        .eq('is_terminated', false)
+        .eq('is_suspended', false)
+        .order('contract_date', { ascending: true });
+
+      if (clientsError) throw clientsError;
+
+      if (!clients || clients.length === 0) {
+        toast({
+          title: "Нет данных",
+          description: `Нет клиентов за ${syncMonth} для синхронизации`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Формируем payload
+      const clientsData = clients.map(client => ({
+        full_name: client.full_name,
+        contract_amount: client.contract_amount,
+        first_payment: client.first_payment,
+        installment_period: client.installment_period,
+        monthly_payment: client.monthly_payment,
+        contract_date: client.contract_date,
+        source: client.source || '',
+        city: client.city || '',
+        manager: client.manager || ''
+      }));
+
+      const { data: fnData, error: functionError } = await supabase.functions.invoke('send-to-pnltracker', {
+        body: {
+          event_type: 'sync_clients_full',
+          month: syncMonth,
+          company: 'Спасение',
+          user_id: user.id,
+          clients: clientsData
+        }
+      });
+
+      if (functionError || !(fnData as any)?.success) {
+        console.error('Sync error:', functionError || fnData);
+        toast({
+          title: "Ошибка синхронизации",
+          description: (fnData as any)?.error || functionError?.message || 'Неизвестная ошибка',
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Синхронизация завершена",
+        description: `Успешно синхронизировано ${clients.length} клиентов за ${syncMonth}`,
+      });
+    } catch (error) {
+      console.error('Sync clients error:', error);
+      toast({
+        title: "Ошибка синхронизации",
+        description: "Не удалось синхронизировать клиентов",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingClients(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Экспорт данных */}
         <Card>
           <CardHeader>
@@ -481,7 +576,7 @@ export const ImportExportPanel = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <RefreshCw className="h-5 w-5" />
-              Синхронизация с PnL Tracker
+              Синхронизация PnL
             </CardTitle>
             <CardDescription>
               Отправить данные существующих клиентов в PnL Tracker
@@ -496,12 +591,12 @@ export const ImportExportPanel = () => {
               {isSyncing ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Синхронизация... ({syncProgress.current}/{syncProgress.total})
+                  Синхр... ({syncProgress.current}/{syncProgress.total})
                 </>
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Синхронизировать клиентов
+                  Синхронизировать
                 </>
               )}
             </Button>
@@ -513,6 +608,48 @@ export const ImportExportPanel = () => {
                 />
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Синхронизация клиентов за месяц */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5" />
+              Клиенты за месяц
+            </CardTitle>
+            <CardDescription>
+              Синхронизировать всех клиентов за выбранный месяц
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="sync-month">Месяц</Label>
+              <Input
+                id="sync-month"
+                type="month"
+                value={syncMonth}
+                onChange={(e) => setSyncMonth(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <Button 
+              onClick={handleSyncClientsFull}
+              disabled={isSyncingClients}
+              className="w-full"
+            >
+              {isSyncingClients ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Синхронизация...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Синхронизировать
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
       </div>
