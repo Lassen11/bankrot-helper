@@ -161,6 +161,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             deposit_target: 70000,
             payment_day: parseInt(formData.paymentDay),
             contract_date: formData.contractDate,
+            created_at: formData.contractDate,
             user_id: user.id,
             employee_id: employeeId
           }
