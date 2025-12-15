@@ -231,7 +231,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
             contract_amount: contractAmount,
             first_payment: parseFloat(formData.firstPayment),
             date: formData.contractDate,
-            income_account: 'Расчетный счет',
+            income_account: formData.account,
             company: 'Спасение',
             user_id: user.id,
             description: `Договор на сумму ${contractAmount.toFixed(2)} ₽`
