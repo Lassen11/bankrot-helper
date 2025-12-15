@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.sync-dashboard-metrics]
 verify_jwt = false
+
+[functions.get-clients]
+verify_jwt = false
