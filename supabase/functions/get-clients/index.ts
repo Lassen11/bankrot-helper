@@ -20,10 +20,11 @@ serve(async (req) => {
 
     const url = new URL(req.url);
     const employeeId = url.searchParams.get('employee_id');
+    const month = url.searchParams.get('month'); // Format: YYYY-MM
     const includeTerminated = url.searchParams.get('include_terminated') === 'true';
     const includeSuspended = url.searchParams.get('include_suspended') === 'true';
 
-    console.log('get-clients called', { employeeId, includeTerminated, includeSuspended });
+    console.log('get-clients called', { employeeId, month, includeTerminated, includeSuspended });
 
     let query = supabase
       .from('clients')
@@ -33,6 +34,18 @@ serve(async (req) => {
     // Filter by employee if specified
     if (employeeId) {
       query = query.eq('employee_id', employeeId);
+    }
+
+    // Filter by creation month if specified (based on contract_date)
+    if (month) {
+      const monthStart = `${month}-01`;
+      const [year, monthNum] = month.split('-').map(Number);
+      const nextMonth = monthNum === 12 ? 1 : monthNum + 1;
+      const nextYear = monthNum === 12 ? year + 1 : year;
+      const monthEnd = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+      
+      query = query.gte('contract_date', monthStart).lt('contract_date', monthEnd);
+      console.log(`Filtering by month: ${monthStart} to ${monthEnd}`);
     }
 
     // Filter terminated clients unless explicitly included
