@@ -8,6 +8,7 @@ import ClientView from "./pages/ClientView";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import PaymentHistory from "./pages/PaymentHistory";
+import AdminClients from "./pages/AdminClients";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -41,6 +42,11 @@ const App = () => (
             <Route path="/payment-history" element={
               <ProtectedRoute>
                 <PaymentHistory />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/clients" element={
+              <ProtectedRoute>
+                <AdminClients />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
