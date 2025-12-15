@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, CreditCard, User, CalendarIcon, Check, X, Pencil, Save, AlertCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -729,11 +730,23 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Источник</p>
                     {isEditingClient ? (
-                      <Input
+                      <Select
                         value={editedClient.source || ''}
-                        onChange={(e) => setEditedClient({ ...editedClient, source: e.target.value })}
-                        placeholder="Источник"
-                      />
+                        onValueChange={(value) => setEditedClient({ ...editedClient, source: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите источник" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Авито">Авито</SelectItem>
+                          <SelectItem value="Сайт">Сайт</SelectItem>
+                          <SelectItem value="Квиз">Квиз</SelectItem>
+                          <SelectItem value="Рекомендация Руководителя">Рекомендация Руководителя</SelectItem>
+                          <SelectItem value="Рекомендация ОЗ">Рекомендация ОЗ</SelectItem>
+                          <SelectItem value="Рекомендация менеджера">Рекомендация менеджера</SelectItem>
+                          <SelectItem value="Рекомендация клиента">Рекомендация клиента</SelectItem>
+                        </SelectContent>
+                      </Select>
                     ) : (
                       <p className="font-medium">{client.source || 'Не указан'}</p>
                     )}

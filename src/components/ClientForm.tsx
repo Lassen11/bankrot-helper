@@ -315,6 +315,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
                   <SelectItem value="Рекомендация Руководителя">Рекомендация Руководителя</SelectItem>
                   <SelectItem value="Рекомендация ОЗ">Рекомендация ОЗ</SelectItem>
                   <SelectItem value="Рекомендация менеджера">Рекомендация менеджера</SelectItem>
+                  <SelectItem value="Рекомендация клиента">Рекомендация клиента</SelectItem>
                 </SelectContent>
               </Select>
             </div>
