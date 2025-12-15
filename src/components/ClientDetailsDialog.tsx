@@ -745,6 +745,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                           <SelectItem value="Рекомендация ОЗ">Рекомендация ОЗ</SelectItem>
                           <SelectItem value="Рекомендация менеджера">Рекомендация менеджера</SelectItem>
                           <SelectItem value="Рекомендация клиента">Рекомендация клиента</SelectItem>
+                          <SelectItem value="С улицы">С улицы</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
