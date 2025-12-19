@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { AddPaymentDialog } from "./AddPaymentDialog";
 interface PaymentScheduleProps {
   clientId: string;
   contractAmount: number;
@@ -476,23 +477,37 @@ export const PaymentSchedule = ({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>График платежей</CardTitle>
-          <Button 
-            onClick={regeneratePaymentSchedule}
-            variant="outline"
-            size="sm"
-            disabled={loading}
-            className="gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Пересоздать график
-          </Button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <AddPaymentDialog 
+                clientId={clientId} 
+                onPaymentAdded={initializePayments}
+                existingPaymentsCount={payments.length}
+              />
+            )}
+            <Button 
+              onClick={regeneratePaymentSchedule}
+              variant="outline"
+              size="sm"
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Пересоздать график
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3 max-h-64 overflow-y-auto">
           {payments.map((payment) => {
             const currentAmount = payment.custom_amount ?? payment.original_amount;
-            const paymentType = payment.payment_type === 'advance' ? 'Авансовый платеж' : `Платеж ${payment.payment_number}`;
+            const getPaymentTypeLabel = () => {
+              if (payment.payment_type === 'advance') return 'Авансовый платеж';
+              if (payment.payment_type === 'additional') return `Доп. счёт${payment.account ? `: ${payment.account}` : ''}`;
+              return `Платеж ${payment.payment_number}`;
+            };
+            const paymentType = getPaymentTypeLabel();
             const isEditing = editingPayment === payment.id;
             
             return (
