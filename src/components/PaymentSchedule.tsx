@@ -391,24 +391,11 @@ export const PaymentSchedule = ({
         .order('payment_number', { ascending: false })
         .limit(1);
 
-      const lastCompletedNumber = completedPayments?.[0]?.payment_number ?? -1;
+      const lastCompletedNumber = completedPayments?.[0]?.payment_number ?? 0;
       
       // Создаем новые платежи начиная со следующего номера после последнего выполненного
       const paymentsToCreate = [];
       const startDate = new Date(contractDate);
-      const remainingPayments = installmentPeriod - (lastCompletedNumber >= 0 ? lastCompletedNumber : 0);
-
-      // Если авансовый платеж еще не выполнен, создаем его
-      if (lastCompletedNumber < 0) {
-        paymentsToCreate.push({
-          client_id: clientId,
-          user_id: user.id,
-          payment_number: 0,
-          original_amount: firstPayment,
-          due_date: startDate.toISOString().split('T')[0],
-          payment_type: 'advance'
-        });
-      }
 
       // Создаем ежемесячные платежи
       for (let i = Math.max(1, lastCompletedNumber + 1); i <= installmentPeriod; i++) {
