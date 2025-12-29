@@ -18,6 +18,7 @@ import { AdminBonusManagement } from "./AdminBonusManagement";
 import { TerminatedClientsHistory } from "./TerminatedClientsHistory";
 import { SuspendedClientsHistory } from "./SuspendedClientsHistory";
 import { AllPaymentsDialog } from "./AllPaymentsDialog";
+import { PaymentPlanBreakdownDialog } from "./PaymentPlanBreakdownDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -86,6 +87,7 @@ export const AdminPanel = () => {
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
   const [allPaymentsDialogOpen, setAllPaymentsDialogOpen] = useState(false);
+  const [planBreakdownDialogOpen, setPlanBreakdownDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -808,7 +810,7 @@ export const AdminPanel = () => {
 
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow" 
-              onClick={() => setPaymentsDialogOpen(true)}
+              onClick={() => setPlanBreakdownDialogOpen(true)}
             >
               <CardContent className="p-6">
                 <div className="flex items-center">
@@ -817,7 +819,7 @@ export const AdminPanel = () => {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-muted-foreground">
-                      Сумма платежей
+                      Сумма платежей <span className="text-xs">(нажмите для детализации)</span>
                     </p>
                     <p className="text-2xl font-bold text-emerald-600">
                       {metrics.loading ? '-' : `${Math.round(metrics.totalPaymentsSum)}/${Math.round(metrics.completedPaymentsSum)} ₽`}
@@ -893,6 +895,14 @@ export const AdminPanel = () => {
           <AllPaymentsDialog 
             open={allPaymentsDialogOpen}
             onOpenChange={setAllPaymentsDialogOpen}
+          />
+
+          <PaymentPlanBreakdownDialog
+            open={planBreakdownDialogOpen}
+            onOpenChange={setPlanBreakdownDialogOpen}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            selectedEmployee={selectedEmployee}
           />
         </TabsContent>
 
