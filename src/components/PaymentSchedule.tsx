@@ -382,25 +382,28 @@ export const PaymentSchedule = ({
         return;
       }
 
-      // Получаем выполненные платежи для определения следующего порядкового номера
+      // Получаем выполненные платежи для определения следующего порядкового номера и даты
       const { data: completedPayments } = await supabase
         .from('payments')
-        .select('payment_number')
+        .select('payment_number, due_date')
         .eq('client_id', clientId)
         .eq('is_completed', true)
-        .order('payment_number', { ascending: false })
+        .order('due_date', { ascending: false })
         .limit(1);
 
       const lastCompletedNumber = completedPayments?.[0]?.payment_number ?? 0;
+      const lastCompletedDate = completedPayments?.[0]?.due_date 
+        ? new Date(completedPayments[0].due_date)
+        : new Date(contractDate);
       
       // Создаем новые платежи начиная со следующего номера после последнего выполненного
       const paymentsToCreate = [];
-      const startDate = new Date(contractDate);
+      const remainingPaymentsCount = installmentPeriod - lastCompletedNumber;
 
-      // Создаем ежемесячные платежи
-      for (let i = Math.max(1, lastCompletedNumber + 1); i <= installmentPeriod; i++) {
-        const paymentDate = new Date(startDate);
-        paymentDate.setMonth(startDate.getMonth() + i);
+      // Создаем ежемесячные платежи начиная от даты последнего выполненного платежа
+      for (let i = 1; i <= remainingPaymentsCount; i++) {
+        const paymentDate = new Date(lastCompletedDate);
+        paymentDate.setMonth(lastCompletedDate.getMonth() + i);
         
         // Получаем последний день месяца для проверки
         const lastDayOfMonth = new Date(paymentDate.getFullYear(), paymentDate.getMonth() + 1, 0).getDate();
@@ -412,7 +415,7 @@ export const PaymentSchedule = ({
         paymentsToCreate.push({
           client_id: clientId,
           user_id: user.id,
-          payment_number: i,
+          payment_number: lastCompletedNumber + i,
           original_amount: monthlyPayment,
           due_date: paymentDate.toISOString().split('T')[0],
           payment_type: 'monthly'
