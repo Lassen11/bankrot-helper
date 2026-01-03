@@ -112,25 +112,35 @@ export const PaymentSchedule = ({
     }
   };
 
+  const buildMonthlyDueDate = (base: Date, monthOffset: number) => {
+    // Важно: НЕ используем setMonth на дате с «концом месяца» (30/31), иначе JS может перескочить месяц.
+    // Вместо этого строим дату через (год/месяц/1) и потом выставляем paymentDay.
+    const firstOfTargetMonth = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
+    const lastDayOfMonth = new Date(
+      firstOfTargetMonth.getFullYear(),
+      firstOfTargetMonth.getMonth() + 1,
+      0
+    ).getDate();
+
+    const actualPaymentDay = Math.min(paymentDay, lastDayOfMonth);
+    return new Date(
+      firstOfTargetMonth.getFullYear(),
+      firstOfTargetMonth.getMonth(),
+      actualPaymentDay
+    );
+  };
+
   const generateInitialSchedule = async () => {
     if (!user) return;
-    
+
     const paymentsToCreate = [];
     const startDate = new Date(contractDate);
-    
+
     // Авансовый платеж уже создан при создании клиента, начинаем с ежемесячных платежей
     // Ежемесячные платежи - используем указанный день месяца из поля payment_day
     for (let i = 1; i <= installmentPeriod; i++) {
-      const paymentDate = new Date(startDate);
-      paymentDate.setMonth(startDate.getMonth() + i);
-      
-      // Получаем последний день месяца для проверки
-      const lastDayOfMonth = new Date(paymentDate.getFullYear(), paymentDate.getMonth() + 1, 0).getDate();
-      
-      // Устанавливаем день платежа, но не больше последнего дня месяца
-      const actualPaymentDay = Math.min(paymentDay, lastDayOfMonth);
-      paymentDate.setDate(actualPaymentDay);
-      
+      const paymentDate = buildMonthlyDueDate(startDate, i);
+
       paymentsToCreate.push({
         client_id: clientId,
         user_id: user.id,
@@ -400,18 +410,11 @@ export const PaymentSchedule = ({
       const paymentsToCreate = [];
       const remainingPaymentsCount = installmentPeriod - lastCompletedNumber;
 
-      // Создаем ежемесячные платежи начиная от даты последнего выполненного платежа
+      // Создаем ежемесячные платежи начиная от МЕСЯЦА последнего выполненного платежа
+      // (не от конкретного дня), чтобы не было «перескоков» месяцев и дублей дат.
       for (let i = 1; i <= remainingPaymentsCount; i++) {
-        const paymentDate = new Date(lastCompletedDate);
-        paymentDate.setMonth(lastCompletedDate.getMonth() + i);
-        
-        // Получаем последний день месяца для проверки
-        const lastDayOfMonth = new Date(paymentDate.getFullYear(), paymentDate.getMonth() + 1, 0).getDate();
-        
-        // Устанавливаем день платежа, но не больше последнего дня месяца
-        const actualPaymentDay = Math.min(paymentDay, lastDayOfMonth);
-        paymentDate.setDate(actualPaymentDay);
-        
+        const paymentDate = buildMonthlyDueDate(lastCompletedDate, i);
+
         paymentsToCreate.push({
           client_id: clientId,
           user_id: user.id,
