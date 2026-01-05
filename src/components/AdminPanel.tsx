@@ -220,7 +220,7 @@ export const AdminPanel = () => {
       const newClientsMonthlyPaymentSum = newClients?.reduce((sum, client) => sum + (client.monthly_payment || 0), 0) || 0;
 
       // Получаем завершенных клиентов за выбранный месяц
-      // Клиент считается завершенным если total_paid >= contract_amount и последний платеж был в этом месяце
+      // Клиент считается завершенным если total_paid >= contract_amount и ПОСЛЕДНИЙ платеж (не любой) был в этом месяце
       let completedClientsQuery = supabase
         .from('clients')
         .select('id, total_paid, contract_amount, monthly_payment');
@@ -242,22 +242,39 @@ export const AdminPanel = () => {
       if (potentiallyCompletedClients.length > 0) {
         const clientIds = potentiallyCompletedClients.map(c => c.id);
         
-        // Получаем последний завершенный платеж для каждого клиента
-        const { data: lastPayments } = await supabase
+        // Получаем ВСЕ завершенные платежи для каждого клиента
+        const { data: allPayments } = await supabase
           .from('payments')
           .select('client_id, completed_at')
           .in('client_id', clientIds)
           .eq('is_completed', true)
-          .gte('completed_at', startDateStr)
-          .lte('completed_at', endDateStr + 'T23:59:59.999Z')
           .order('completed_at', { ascending: false });
 
-        const uniqueCompletedClients = new Set(lastPayments?.map(p => p.client_id) || []);
-        completedThisMonthCount = uniqueCompletedClients.size;
+        // Находим ПОСЛЕДНИЙ платеж для каждого клиента
+        const lastPaymentByClient = new Map<string, string>();
+        allPayments?.forEach(p => {
+          if (p.completed_at && !lastPaymentByClient.has(p.client_id)) {
+            lastPaymentByClient.set(p.client_id, p.completed_at);
+          }
+        });
+
+        // Проверяем, попадает ли ПОСЛЕДНИЙ платеж в выбранный месяц
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(endDateStr + 'T23:59:59.999Z');
+        
+        const completedInMonth = new Set<string>();
+        lastPaymentByClient.forEach((completedAt, clientId) => {
+          const paymentDate = new Date(completedAt);
+          if (paymentDate >= startDate && paymentDate <= endDate) {
+            completedInMonth.add(clientId);
+          }
+        });
+
+        completedThisMonthCount = completedInMonth.size;
         
         // Суммируем monthly_payment только для завершенных в этом месяце клиентов
         completedClientsMonthlyPaymentSum = potentiallyCompletedClients
-          .filter(client => uniqueCompletedClients.has(client.id))
+          .filter(client => completedInMonth.has(client.id))
           .reduce((sum, client) => sum + (client.monthly_payment || 0), 0);
       }
 
