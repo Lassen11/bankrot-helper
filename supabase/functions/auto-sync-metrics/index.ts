@@ -18,16 +18,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Получаем текущий месяц
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    
-    const startDateStr = startOfMonth.toISOString().split('T')[0];
-    const endDateStr = endOfMonth.toISOString().split('T')[0];
-    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    console.log(`Auto-sync metrics for month: ${monthStr}`);
+    console.log(`Auto-sync metrics for all time`);
 
     // Получаем всех клиентов
     const { data: allClients, error: clientsError } = await supabase
@@ -40,45 +33,28 @@ Deno.serve(async (req) => {
 
     const clients = allClients || [];
 
-    // Новые клиенты за месяц
-    const newClientsThisMonth = clients.filter(c => {
-      if (!c.contract_date) return false;
-      const contractDate = c.contract_date.split('T')[0];
-      return contractDate >= startDateStr && contractDate <= endDateStr;
-    });
-    const newClientsCount = newClientsThisMonth.length;
-    const newClientsMonthlyPaymentSum = newClientsThisMonth.reduce((sum, c) => sum + (c.monthly_payment || 0), 0);
+    // Все новые клиенты (за всё время)
+    const newClientsCount = clients.length;
+    const newClientsMonthlyPaymentSum = clients.reduce((sum, c) => sum + (c.monthly_payment || 0), 0);
 
-    // Завершённые клиенты за месяц (по полю completed_at)
-    const completedThisMonth = clients.filter(c => {
-      if (!c.completed_at) return false;
-      const completedDate = c.completed_at.split('T')[0];
-      return completedDate >= startDateStr && completedDate <= endDateStr;
-    });
-    const completedClientsCount = completedThisMonth.length;
-    const completedClientsMonthlyPaymentSum = completedThisMonth.reduce((sum, c) => sum + (c.monthly_payment || 0), 0);
+    // Все завершённые клиенты (за всё время)
+    const completedClients = clients.filter(c => c.completed_at);
+    const completedClientsCount = completedClients.length;
+    const completedClientsMonthlyPaymentSum = completedClients.reduce((sum, c) => sum + (c.monthly_payment || 0), 0);
 
     // Остаток платежей (только активные клиенты)
     const activeClients = clients.filter(c => !c.is_terminated && !c.is_suspended && !c.completed_at);
     const totalRemainingAmount = activeClients.reduce((sum, c) => sum + (c.remaining_amount || 0), 0);
 
-    // Расторгнутые клиенты за месяц
-    const terminatedThisMonth = clients.filter(c => {
-      if (!c.terminated_at) return false;
-      const terminatedDate = c.terminated_at.split('T')[0];
-      return terminatedDate >= startDateStr && terminatedDate <= endDateStr;
-    });
-    const terminatedClientsCount = terminatedThisMonth.length;
-    const terminatedContractAmount = terminatedThisMonth.reduce((sum, c) => sum + (c.contract_amount || 0), 0);
+    // Все расторгнутые клиенты (за всё время)
+    const terminatedClients = clients.filter(c => c.is_terminated);
+    const terminatedClientsCount = terminatedClients.length;
+    const terminatedContractAmount = terminatedClients.reduce((sum, c) => sum + (c.contract_amount || 0), 0);
 
-    // Приостановленные клиенты за месяц
-    const suspendedThisMonth = clients.filter(c => {
-      if (!c.suspended_at) return false;
-      const suspendedDate = c.suspended_at.split('T')[0];
-      return suspendedDate >= startDateStr && suspendedDate <= endDateStr;
-    });
-    const suspendedClientsCount = suspendedThisMonth.length;
-    const suspendedContractAmount = suspendedThisMonth.reduce((sum, c) => sum + (c.contract_amount || 0), 0);
+    // Все приостановленные клиенты (за всё время)
+    const suspendedClients = clients.filter(c => c.is_suspended);
+    const suspendedClientsCount = suspendedClients.length;
+    const suspendedContractAmount = suspendedClients.reduce((sum, c) => sum + (c.contract_amount || 0), 0);
 
     const payload = {
       event_type: 'dashboard_metrics',
@@ -94,7 +70,7 @@ Deno.serve(async (req) => {
       company: 'Спасение',
       user_id: 'auto-sync',
       date: now.toISOString(),
-      month: monthStr
+      period: 'all_time'
     };
 
     console.log('Sending auto-sync metrics to pnltracker:', JSON.stringify(payload));
