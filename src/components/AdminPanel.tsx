@@ -313,11 +313,13 @@ export const AdminPanel = () => {
       const totalPaymentsCount = uniqueClientsWithPayments.size;
       const completedPaymentsCount = clientsWithCompletedPayments.size;
 
-      // Получаем данные о расторгнутых клиентах
+      // Получаем данные о расторгнутых клиентах за выбранный период
       let terminatedQuery = supabase
         .from('clients')
-        .select('id, contract_amount, monthly_payment')
-        .eq('is_terminated', true);
+        .select('id, contract_amount, monthly_payment, terminated_at')
+        .eq('is_terminated', true)
+        .gte('terminated_at', startDateStr)
+        .lte('terminated_at', endDateStr + 'T23:59:59.999Z');
 
       if (selectedEmployee !== 'all') {
         terminatedQuery = terminatedQuery.eq('employee_id', selectedEmployee);
@@ -328,11 +330,13 @@ export const AdminPanel = () => {
       const terminatedContractAmount = terminatedClients?.reduce((sum, c) => sum + (c.contract_amount || 0), 0) || 0;
       const terminatedMonthlyPaymentSum = terminatedClients?.reduce((sum, c) => sum + (c.monthly_payment || 0), 0) || 0;
 
-      // Получаем данные о приостановленных клиентах
+      // Получаем данные о приостановленных клиентах за выбранный период
       let suspendedQuery = supabase
         .from('clients')
-        .select('id, contract_amount, monthly_payment')
-        .eq('is_suspended', true);
+        .select('id, contract_amount, monthly_payment, suspended_at')
+        .eq('is_suspended', true)
+        .gte('suspended_at', startDateStr)
+        .lte('suspended_at', endDateStr + 'T23:59:59.999Z');
 
       if (selectedEmployee !== 'all') {
         suspendedQuery = suspendedQuery.eq('employee_id', selectedEmployee);
