@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History, XCircle } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History, XCircle, PauseCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +42,9 @@ interface AdminMetrics {
   terminatedClientsCount: number;
   terminatedContractAmount: number;
   terminatedMonthlyPaymentSum: number;
+  suspendedClientsCount: number;
+  suspendedContractAmount: number;
+  suspendedMonthlyPaymentSum: number;
   loading: boolean;
 }
 
@@ -88,6 +91,9 @@ export const AdminPanel = () => {
     terminatedClientsCount: 0,
     terminatedContractAmount: 0,
     terminatedMonthlyPaymentSum: 0,
+    suspendedClientsCount: 0,
+    suspendedContractAmount: 0,
+    suspendedMonthlyPaymentSum: 0,
     loading: true
   });
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
@@ -322,6 +328,21 @@ export const AdminPanel = () => {
       const terminatedContractAmount = terminatedClients?.reduce((sum, c) => sum + (c.contract_amount || 0), 0) || 0;
       const terminatedMonthlyPaymentSum = terminatedClients?.reduce((sum, c) => sum + (c.monthly_payment || 0), 0) || 0;
 
+      // Получаем данные о приостановленных клиентах
+      let suspendedQuery = supabase
+        .from('clients')
+        .select('id, contract_amount, monthly_payment')
+        .eq('is_suspended', true);
+
+      if (selectedEmployee !== 'all') {
+        suspendedQuery = suspendedQuery.eq('employee_id', selectedEmployee);
+      }
+
+      const { data: suspendedClients } = await suspendedQuery;
+      const suspendedClientsCount = suspendedClients?.length || 0;
+      const suspendedContractAmount = suspendedClients?.reduce((sum, c) => sum + (c.contract_amount || 0), 0) || 0;
+      const suspendedMonthlyPaymentSum = suspendedClients?.reduce((sum, c) => sum + (c.monthly_payment || 0), 0) || 0;
+
       setMetrics({
         totalUsers: employeeCount,
         totalClients,
@@ -338,6 +359,9 @@ export const AdminPanel = () => {
         terminatedClientsCount,
         terminatedContractAmount,
         terminatedMonthlyPaymentSum,
+        suspendedClientsCount,
+        suspendedContractAmount,
+        suspendedMonthlyPaymentSum,
         loading: false
       });
 
@@ -865,6 +889,27 @@ export const AdminPanel = () => {
                     </p>
                     <p className="text-lg font-bold text-destructive">
                       {metrics.loading ? '-' : `${metrics.terminatedClientsCount} / ${formatAmount(metrics.terminatedContractAmount)} / ${formatAmount(metrics.terminatedMonthlyPaymentSum)}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      кол-во / договоры / ежемес.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-amber-500/10 rounded-full">
+                    <PauseCircle className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Сумма приостановок
+                    </p>
+                    <p className="text-lg font-bold text-amber-600">
+                      {metrics.loading ? '-' : `${metrics.suspendedClientsCount} / ${formatAmount(metrics.suspendedContractAmount)} / ${formatAmount(metrics.suspendedMonthlyPaymentSum)}`}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       кол-во / договоры / ежемес.
