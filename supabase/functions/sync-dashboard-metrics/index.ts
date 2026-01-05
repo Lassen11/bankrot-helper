@@ -26,6 +26,16 @@ interface DashboardMetricsPayload {
   month: string;
 }
 
+const normalizeMonth = (month: unknown): string => {
+  if (typeof month !== "string") return "";
+  const m = month.trim();
+  // Accept strictly YYYY-MM
+  if (/^\d{4}-\d{2}$/.test(m)) return m;
+  // Strip day/time: YYYY-MM-xx or YYYY-MM-xxT...
+  if (/^\d{4}-\d{2}-/.test(m)) return m.slice(0, 7);
+  return m;
+};
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -33,7 +43,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload: DashboardMetricsPayload = await req.json();
+    const raw = (await req.json()) as Partial<DashboardMetricsPayload> & { month?: unknown };
+
+    const payload: DashboardMetricsPayload = {
+      ...(raw as DashboardMetricsPayload),
+      month: normalizeMonth(raw.month),
+    };
     
     console.log('Sending dashboard metrics to pnltracker:', payload);
 
