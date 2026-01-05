@@ -16,8 +16,10 @@ interface DashboardMetricsPayload {
   remaining_payments_sum: number;
   terminated_clients_count: number;
   terminated_contract_amount: number;
+  terminated_monthly_payment_sum: number;
   suspended_clients_count: number;
   suspended_contract_amount: number;
+  suspended_monthly_payment_sum: number;
   company: string;
   user_id: string;
   date: string;
