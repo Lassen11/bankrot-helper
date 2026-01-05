@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History, XCircle, PauseCircle, Wallet } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History, XCircle, PauseCircle, Wallet, Send, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -105,10 +105,57 @@ export const AdminPanel = () => {
   const [planBreakdownDialogOpen, setPlanBreakdownDialogOpen] = useState(false);
   const [metricDialogOpen, setMetricDialogOpen] = useState(false);
   const [selectedMetricType, setSelectedMetricType] = useState<MetricType>('totalClients');
+  const [syncingMetrics, setSyncingMetrics] = useState(false);
 
   const openMetricDialog = (type: MetricType) => {
     setSelectedMetricType(type);
     setMetricDialogOpen(true);
+  };
+
+  const handleSendMetricsNow = async () => {
+    if (!user || syncingMetrics) return;
+    
+    setSyncingMetrics(true);
+    try {
+      const monthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+      
+      const { data, error } = await supabase.functions.invoke('sync-dashboard-metrics', {
+        body: {
+          event_type: 'dashboard_metrics',
+          new_clients_count: metrics.newClientsThisMonth,
+          new_clients_monthly_payment_sum: metrics.newClientsMonthlyPaymentSum,
+          completed_clients_count: metrics.completedClientsThisMonth,
+          completed_clients_monthly_payment_sum: metrics.completedClientsMonthlyPaymentSum,
+          remaining_payments_sum: metrics.totalRemainingAmount,
+          terminated_clients_count: metrics.terminatedClientsCount,
+          terminated_contract_amount: metrics.terminatedContractAmount,
+          terminated_monthly_payment_sum: metrics.terminatedMonthlyPaymentSum,
+          suspended_clients_count: metrics.suspendedClientsCount,
+          suspended_contract_amount: metrics.suspendedContractAmount,
+          suspended_monthly_payment_sum: metrics.suspendedMonthlyPaymentSum,
+          company: 'Спасение',
+          user_id: selectedEmployee || user?.id || '',
+          date: new Date().toISOString(),
+          month: monthStr,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Метрики отправлены",
+        description: `Данные за ${monthStr} успешно отправлены в PnL Tracker`,
+      });
+    } catch (error) {
+      console.error('Failed to sync metrics:', error);
+      toast({
+        title: "Ошибка отправки",
+        description: error instanceof Error ? error.message : "Не удалось отправить метрики",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingMetrics(false);
+    }
   };
 
   useEffect(() => {
@@ -719,6 +766,21 @@ export const AdminPanel = () => {
                     ))}
                   </SelectContent>
                 </Select>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendMetricsNow}
+                  disabled={syncingMetrics || metrics.loading}
+                  className="ml-auto"
+                >
+                  {syncingMetrics ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  Отправить метрики сейчас
+                </Button>
               </div>
             </CardContent>
           </Card>
