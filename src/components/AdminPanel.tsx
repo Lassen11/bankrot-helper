@@ -359,9 +359,8 @@ export const AdminPanel = () => {
 
       // Отправляем метрики в PnL Tracker
       try {
-        const today = new Date();
-        const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-        
+        const monthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+
         await supabase.functions.invoke('sync-dashboard-metrics', {
           body: {
             event_type: 'dashboard_metrics',
@@ -377,8 +376,8 @@ export const AdminPanel = () => {
             company: 'Спасение',
             user_id: selectedEmployee || user?.id || '',
             date: new Date().toISOString(),
-            month: monthStr
-          }
+            month: monthStr,
+          },
         });
         console.log('Dashboard metrics sent to PnL Tracker');
       } catch (syncError) {
