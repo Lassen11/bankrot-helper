@@ -92,7 +92,7 @@ export const MetricClientsDialog = ({
 
       let query = supabase
         .from('clients')
-        .select('id, full_name, contract_amount, monthly_payment, remaining_amount, total_paid, contract_date, employee_id, is_terminated, is_suspended, terminated_at, suspended_at, termination_reason, suspension_reason, created_at');
+        .select('id, full_name, contract_amount, monthly_payment, remaining_amount, total_paid, contract_date, employee_id, is_terminated, is_suspended, terminated_at, suspended_at, termination_reason, suspension_reason, created_at, completed_at');
 
       if (selectedEmployee !== 'all') {
         query = query.eq('employee_id', selectedEmployee);
@@ -180,48 +180,20 @@ export const MetricClientsDialog = ({
           break;
 
         case 'completedClientsThisMonth': {
-          const potentiallyCompleted = activeClients.filter(c => 
-            (c.total_paid || 0) >= (c.contract_amount || 0)
-          );
+          // Используем поле completed_at клиента вместо даты последнего платежа
+          const startDate = new Date(startDateStr);
+          const endDate = new Date(endDateStr + 'T23:59:59.999Z');
           
-          if (potentiallyCompleted.length > 0) {
-            const clientIds = potentiallyCompleted.map(c => c.id);
-            
-            // Получаем ВСЕ завершенные платежи для каждого клиента
-            const { data: allPayments } = await supabase
-              .from('payments')
-              .select('client_id, completed_at')
-              .in('client_id', clientIds)
-              .eq('is_completed', true)
-              .order('completed_at', { ascending: false });
-
-            // Находим ПОСЛЕДНИЙ платеж для каждого клиента
-            const lastPaymentByClient = new Map<string, string>();
-            allPayments?.forEach(p => {
-              if (p.completed_at && !lastPaymentByClient.has(p.client_id)) {
-                lastPaymentByClient.set(p.client_id, p.completed_at);
-              }
-            });
-
-            // Проверяем, попадает ли ПОСЛЕДНИЙ платеж в выбранный месяц
-            const startDate = new Date(startDateStr);
-            const endDate = new Date(endDateStr + 'T23:59:59.999Z');
-            
-            const completedInMonth = new Set<string>();
-            lastPaymentByClient.forEach((completedAt, clientId) => {
-              const paymentDate = new Date(completedAt);
-              if (paymentDate >= startDate && paymentDate <= endDate) {
-                completedInMonth.add(clientId);
-              }
-            });
-
-            filteredClients = potentiallyCompleted
-              .filter(c => completedInMonth.has(c.id))
-              .map(c => ({
-                ...c,
-                employee_name: profilesMap.get(c.employee_id) || 'Не назначен',
-              }));
-          }
+          filteredClients = (allClients || [])
+            .filter(c => {
+              if (!c.completed_at) return false;
+              const completedDate = new Date(c.completed_at);
+              return completedDate >= startDate && completedDate <= endDate;
+            })
+            .map(c => ({
+              ...c,
+              employee_name: profilesMap.get(c.employee_id) || 'Не назначен',
+            }));
           break;
         }
 
