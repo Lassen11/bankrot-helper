@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History, XCircle, PauseCircle } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History, XCircle, PauseCircle, Wallet } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +45,7 @@ interface AdminMetrics {
   suspendedClientsCount: number;
   suspendedContractAmount: number;
   suspendedMonthlyPaymentSum: number;
+  totalRemainingAmount: number;
   loading: boolean;
 }
 
@@ -94,6 +95,7 @@ export const AdminPanel = () => {
     suspendedClientsCount: 0,
     suspendedContractAmount: 0,
     suspendedMonthlyPaymentSum: 0,
+    totalRemainingAmount: 0,
     loading: true
   });
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
@@ -138,7 +140,7 @@ export const AdminPanel = () => {
       // Получаем всех клиентов (включая приостановленных/расторгнутых)
       let allClientsQuery = supabase
         .from('clients')
-        .select('contract_amount, total_paid, id, monthly_payment, contract_date, is_terminated, is_suspended, terminated_at, suspended_at');
+        .select('contract_amount, total_paid, id, monthly_payment, contract_date, is_terminated, is_suspended, terminated_at, suspended_at, remaining_amount');
 
       // Фильтруем по сотруднику если выбран
       if (selectedEmployee !== 'all') {
@@ -187,6 +189,7 @@ export const AdminPanel = () => {
 
       const totalClients = clients.length;
       const totalContractAmount = clients.reduce((sum, client) => sum + (client.contract_amount || 0), 0);
+      const totalRemainingAmount = clients.reduce((sum, client) => sum + (client.remaining_amount || 0), 0);
       const activeCases = clients.filter(client => {
         const totalPaid = client.total_paid || 0;
         const contractAmount = client.contract_amount || 0;
@@ -366,6 +369,7 @@ export const AdminPanel = () => {
         suspendedClientsCount,
         suspendedContractAmount,
         suspendedMonthlyPaymentSum,
+        totalRemainingAmount,
         loading: false
       });
 
@@ -779,6 +783,24 @@ export const AdminPanel = () => {
                     </p>
                     <p className="text-2xl font-bold text-green-600">
                       {metrics.loading ? '-' : formatAmount(metrics.totalContractAmount)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-indigo-500/10 rounded-full">
+                    <Wallet className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Остаток платежей
+                    </p>
+                    <p className="text-2xl font-bold text-indigo-600">
+                      {metrics.loading ? '-' : formatAmount(metrics.totalRemainingAmount)}
                     </p>
                   </div>
                 </div>
