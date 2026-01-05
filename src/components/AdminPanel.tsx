@@ -192,6 +192,12 @@ export const AdminPanel = () => {
       const endDay = new Date(year, month, 0).getDate();
       const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
 
+      // Удобные ISO-границы месяца (чтобы не ловить TZ-крайние случаи)
+      const startDateIso = `${startDateStr}T00:00:00.000Z`;
+      const nextMonthDate = new Date(year, month, 1); // month здесь 1-12; Date ожидает 0-11, поэтому это следующий месяц
+      const nextMonthStartStr = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+      const nextMonthStartIso = `${nextMonthStartStr}T00:00:00.000Z`;
+
       // Получаем всех клиентов (включая приостановленных/расторгнутых)
       let allClientsQuery = supabase
         .from('clients')
@@ -214,7 +220,7 @@ export const AdminPanel = () => {
         if (!client.is_terminated && !client.is_suspended) {
           return true;
         }
-        
+
         // Если расторгнут - проверяем дату расторжения
         if (client.is_terminated && client.terminated_at) {
           const terminatedDate = new Date(client.terminated_at);
@@ -226,7 +232,7 @@ export const AdminPanel = () => {
           }
           return false;
         }
-        
+
         // Если приостановлен - проверяем дату приостановки
         if (client.is_suspended && client.suspended_at) {
           const suspendedDate = new Date(client.suspended_at);
@@ -238,7 +244,7 @@ export const AdminPanel = () => {
           }
           return false;
         }
-        
+
         return false;
       }) || [];
 
@@ -280,7 +286,7 @@ export const AdminPanel = () => {
       }
 
       const { data: completedClients } = await completedClientsQuery;
-      
+
       const completedThisMonthCount = completedClients?.length || 0;
       const completedClientsMonthlyPaymentSum = completedClients?.reduce((sum, client) => sum + (client.monthly_payment || 0), 0) || 0;
 
@@ -325,10 +331,10 @@ export const AdminPanel = () => {
           // Проверяем, что клиент не новый (дата договора не в выбранном месяце)
           const contractDate = new Date(clientData.contract_date);
           const currentMonth = new Date(year, month - 1, 1);
-          const isNewClient = contractDate >= currentMonth && 
+          const isNewClient = contractDate >= currentMonth &&
                              contractDate.getMonth() === month - 1 &&
                              contractDate.getFullYear() === year;
-          
+
           if (!isNewClient) {
             totalPaymentsSum += clientData.monthly_payment || 0;
           }
@@ -352,11 +358,11 @@ export const AdminPanel = () => {
         .from('clients')
         .select('id, contract_amount, monthly_payment, terminated_at')
         .eq('is_terminated', true)
-        .gte('terminated_at', startDateStr)
-        .lte('terminated_at', endDateStr + 'T23:59:59.999Z');
+        .gte('terminated_at', startDateIso)
+        .lt('terminated_at', nextMonthStartIso);
 
       if (selectedEmployee !== 'all') {
-        terminatedQuery = terminatedQuery.eq('employee_id', selectedEmployee);
+        terminatedQuery = terminatedQuery.eq('user_id', selectedEmployee);
       }
 
       const { data: terminatedClients } = await terminatedQuery;
@@ -369,11 +375,11 @@ export const AdminPanel = () => {
         .from('clients')
         .select('id, contract_amount, monthly_payment, suspended_at')
         .eq('is_suspended', true)
-        .gte('suspended_at', startDateStr)
-        .lte('suspended_at', endDateStr + 'T23:59:59.999Z');
+        .gte('suspended_at', startDateIso)
+        .lt('suspended_at', nextMonthStartIso);
 
       if (selectedEmployee !== 'all') {
-        suspendedQuery = suspendedQuery.eq('employee_id', selectedEmployee);
+        suspendedQuery = suspendedQuery.eq('user_id', selectedEmployee);
       }
 
       const { data: suspendedClients } = await suspendedQuery;
