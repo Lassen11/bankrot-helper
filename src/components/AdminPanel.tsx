@@ -19,6 +19,7 @@ import { TerminatedClientsHistory } from "./TerminatedClientsHistory";
 import { SuspendedClientsHistory } from "./SuspendedClientsHistory";
 import { AllPaymentsDialog } from "./AllPaymentsDialog";
 import { PaymentPlanBreakdownDialog } from "./PaymentPlanBreakdownDialog";
+import { MetricClientsDialog, MetricType } from "./MetricClientsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -102,6 +103,13 @@ export const AdminPanel = () => {
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
   const [allPaymentsDialogOpen, setAllPaymentsDialogOpen] = useState(false);
   const [planBreakdownDialogOpen, setPlanBreakdownDialogOpen] = useState(false);
+  const [metricDialogOpen, setMetricDialogOpen] = useState(false);
+  const [selectedMetricType, setSelectedMetricType] = useState<MetricType>('totalClients');
+
+  const openMetricDialog = (type: MetricType) => {
+    setSelectedMetricType(type);
+    setMetricDialogOpen(true);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -753,7 +761,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('totalClients')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-primary/10 rounded-full">
@@ -771,7 +782,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('totalContractAmount')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-green-500/10 rounded-full">
@@ -789,7 +803,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('totalRemainingAmount')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-indigo-500/10 rounded-full">
@@ -807,7 +824,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('activeCases')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-orange-500/10 rounded-full">
@@ -825,7 +845,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('newClientsThisMonth')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-cyan-500/10 rounded-full">
@@ -843,7 +866,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('completedClientsThisMonth')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-emerald-500/10 rounded-full">
@@ -864,7 +890,10 @@ export const AdminPanel = () => {
 
           {/* Метрики платежей за выбранный период */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('totalPaymentsCount')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-purple-500/10 rounded-full">
@@ -903,7 +932,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('terminatedClients')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-destructive/10 rounded-full">
@@ -924,7 +956,10 @@ export const AdminPanel = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => openMetricDialog('suspendedClients')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-amber-500/10 rounded-full">
@@ -1147,6 +1182,15 @@ export const AdminPanel = () => {
         userId={user?.id}
         isAdmin={true}
         selectedEmployeeId={selectedEmployee !== 'all' ? selectedEmployee : undefined}
+      />
+
+      <MetricClientsDialog
+        open={metricDialogOpen}
+        onOpenChange={setMetricDialogOpen}
+        metricType={selectedMetricType}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        selectedEmployee={selectedEmployee}
       />
     </div>
   );
