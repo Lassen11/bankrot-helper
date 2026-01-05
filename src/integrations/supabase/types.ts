@@ -122,6 +122,7 @@ export type Database = {
       clients: {
         Row: {
           city: string | null
+          completed_at: string | null
           contract_amount: number
           contract_date: string
           created_at: string | null
@@ -149,6 +150,7 @@ export type Database = {
         }
         Insert: {
           city?: string | null
+          completed_at?: string | null
           contract_amount: number
           contract_date?: string
           created_at?: string | null
@@ -176,6 +178,7 @@ export type Database = {
         }
         Update: {
           city?: string | null
+          completed_at?: string | null
           contract_amount?: number
           contract_date?: string
           created_at?: string | null

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, CreditCard, User, CalendarIcon, Check, X, Pencil, Save, AlertCircle } from "lucide-react";
+import { Calendar, CreditCard, User, CalendarIcon, Check, X, Pencil, Save, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ interface Client {
   employee_id: string;
   created_at: string;
   updated_at: string;
+  completed_at?: string;
 }
 
 interface Payment {
@@ -69,6 +70,8 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
   const [isTerminating, setIsTerminating] = useState(false);
   const [suspensionReason, setSuspensionReason] = useState("");
   const [isSuspending, setIsSuspending] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completionDate, setCompletionDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -457,6 +460,66 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     }
   };
 
+  const handleCompleteClient = async () => {
+    if (!client || !clientId || !completionDate) return;
+
+    setIsCompleting(true);
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          completed_at: completionDate.toISOString()
+        })
+        .eq('id', clientId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Клиент завершён",
+        description: `Дата завершения: ${format(completionDate, 'dd.MM.yyyy')}`,
+      });
+
+      setClient({ ...client, completed_at: completionDate.toISOString() });
+      setCompletionDate(undefined);
+    } catch (error) {
+      console.error('Error completing client:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось завершить клиента",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const handleRemoveCompletion = async () => {
+    if (!client || !clientId) return;
+
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ completed_at: null })
+        .eq('id', clientId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Завершение отменено",
+        description: "Дата завершения клиента удалена",
+      });
+
+      setClient({ ...client, completed_at: undefined });
+    } catch (error) {
+      console.error('Error removing completion:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось отменить завершение",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (!client && !loading) return null;
 
   return (
@@ -471,6 +534,91 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
             <div className="flex gap-2">
               {!isEditingClient ? (
                 <>
+                  {/* Кнопка завершения клиента */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className={client?.completed_at 
+                          ? "text-green-600 hover:text-green-700 border-green-600 hover:border-green-700" 
+                          : "text-emerald-600 hover:text-emerald-700 border-emerald-600 hover:border-emerald-700"
+                        }
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        {client?.completed_at ? "Завершён" : "Завершить"}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {client?.completed_at ? "Управление завершением" : "Завершение клиента"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {client?.completed_at 
+                            ? `Клиент ${client?.full_name} завершён ${format(new Date(client.completed_at), 'dd.MM.yyyy')}`
+                            : `Укажите дату завершения договора с клиентом ${client?.full_name}`
+                          }
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      {client?.completed_at ? (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                            <p className="text-green-800 font-medium">
+                              Дата завершения: {format(new Date(client.completed_at), 'dd.MM.yyyy')}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Дата завершения</label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !completionDate && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {completionDate ? format(completionDate, 'dd.MM.yyyy') : "Выберите дату завершения"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={completionDate}
+                                onSelect={setCompletionDate}
+                                initialFocus
+                                className="pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )}
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Закрыть</AlertDialogCancel>
+                        {client?.completed_at ? (
+                          <AlertDialogAction
+                            onClick={handleRemoveCompletion}
+                            className="bg-red-600 text-white hover:bg-red-700"
+                          >
+                            Отменить завершение
+                          </AlertDialogAction>
+                        ) : (
+                          <AlertDialogAction
+                            onClick={handleCompleteClient}
+                            disabled={isCompleting || !completionDate}
+                            className="bg-emerald-600 text-white hover:bg-emerald-700"
+                          >
+                            {isCompleting ? "Сохранение..." : "Завершить клиента"}
+                          </AlertDialogAction>
+                        )}
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm" className="text-orange-600 hover:text-orange-700 border-orange-600 hover:border-orange-700">
