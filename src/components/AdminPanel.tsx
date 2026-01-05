@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Building, Trash2, DollarSign, Receipt, History, XCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +39,9 @@ interface AdminMetrics {
   completedPaymentsCount: number;
   totalPaymentsSum: number;
   completedPaymentsSum: number;
+  terminatedClientsCount: number;
+  terminatedContractAmount: number;
+  terminatedMonthlyPaymentSum: number;
   loading: boolean;
 }
 
@@ -82,6 +85,9 @@ export const AdminPanel = () => {
     completedPaymentsCount: 0,
     totalPaymentsSum: 0,
     completedPaymentsSum: 0,
+    terminatedClientsCount: 0,
+    terminatedContractAmount: 0,
+    terminatedMonthlyPaymentSum: 0,
     loading: true
   });
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
@@ -301,6 +307,21 @@ export const AdminPanel = () => {
       const totalPaymentsCount = uniqueClientsWithPayments.size;
       const completedPaymentsCount = clientsWithCompletedPayments.size;
 
+      // Получаем данные о расторгнутых клиентах
+      let terminatedQuery = supabase
+        .from('clients')
+        .select('id, contract_amount, monthly_payment')
+        .eq('is_terminated', true);
+
+      if (selectedEmployee !== 'all') {
+        terminatedQuery = terminatedQuery.eq('employee_id', selectedEmployee);
+      }
+
+      const { data: terminatedClients } = await terminatedQuery;
+      const terminatedClientsCount = terminatedClients?.length || 0;
+      const terminatedContractAmount = terminatedClients?.reduce((sum, c) => sum + (c.contract_amount || 0), 0) || 0;
+      const terminatedMonthlyPaymentSum = terminatedClients?.reduce((sum, c) => sum + (c.monthly_payment || 0), 0) || 0;
+
       setMetrics({
         totalUsers: employeeCount,
         totalClients,
@@ -314,6 +335,9 @@ export const AdminPanel = () => {
         completedPaymentsCount,
         totalPaymentsSum,
         completedPaymentsSum,
+        terminatedClientsCount,
+        terminatedContractAmount,
+        terminatedMonthlyPaymentSum,
         loading: false
       });
 
@@ -823,6 +847,27 @@ export const AdminPanel = () => {
                     </p>
                     <p className="text-2xl font-bold text-emerald-600">
                       {metrics.loading ? '-' : `${Math.round(metrics.totalPaymentsSum)}/${Math.round(metrics.completedPaymentsSum)} ₽`}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-destructive/10 rounded-full">
+                    <XCircle className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Сумма расторжений
+                    </p>
+                    <p className="text-lg font-bold text-destructive">
+                      {metrics.loading ? '-' : `${metrics.terminatedClientsCount} / ${formatAmount(metrics.terminatedContractAmount)} / ${formatAmount(metrics.terminatedMonthlyPaymentSum)}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      кол-во / договоры / ежемес.
                     </p>
                   </div>
                 </div>
