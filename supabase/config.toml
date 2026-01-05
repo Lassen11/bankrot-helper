@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.get-clients]
 verify_jwt = false
+
+[functions.auto-sync-metrics]
+verify_jwt = false
