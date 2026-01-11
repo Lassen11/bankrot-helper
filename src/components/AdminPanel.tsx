@@ -257,15 +257,8 @@ export const AdminPanel = () => {
         return totalPaid < contractAmount;
       }).length;
 
-      // Клиенты с contract_date в выбранном месяце (для total_contracts_sum)
-      const clientsInMonth = allClients?.filter(client => {
-        if (!client.contract_date) return false;
-        const contractDate = new Date(client.contract_date);
-        const contractMonth = contractDate.getMonth() + 1;
-        const contractYear = contractDate.getFullYear();
-        return contractYear === year && contractMonth === month;
-      }) || [];
-      const totalContractAmount = clientsInMonth.reduce((sum, client) => sum + (client.contract_amount || 0), 0);
+      // Общая сумма договоров - по ВСЕМ клиентам (без фильтра по месяцу и статусу)
+      const totalContractAmount = allClients?.reduce((sum, client) => sum + (client.contract_amount || 0), 0) || 0;
 
       // Получаем новых клиентов за выбранный месяц (без фильтра по статусу - новые клиенты учитываются независимо)
       let newClientsQuery = supabase
