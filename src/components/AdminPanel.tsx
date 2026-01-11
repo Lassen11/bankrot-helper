@@ -257,8 +257,8 @@ export const AdminPanel = () => {
         return totalPaid < contractAmount;
       }).length;
 
-      // Общая сумма договоров - по ВСЕМ клиентам (без фильтра по месяцу и статусу)
-      const totalContractAmount = allClients?.reduce((sum, client) => sum + (client.contract_amount || 0), 0) || 0;
+      // Общая сумма договоров - только по активным клиентам (исключая расторгнутых и приостановленных)
+      const totalContractAmount = clients.reduce((sum, client) => sum + (client.contract_amount || 0), 0);
 
       // Получаем новых клиентов за выбранный месяц (без фильтра по статусу - новые клиенты учитываются независимо)
       let newClientsQuery = supabase
