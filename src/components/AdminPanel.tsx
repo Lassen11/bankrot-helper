@@ -250,13 +250,22 @@ export const AdminPanel = () => {
       }) || [];
 
       const totalClients = clients.length;
-      const totalContractAmount = clients.reduce((sum, client) => sum + (client.contract_amount || 0), 0);
       const totalRemainingAmount = clients.reduce((sum, client) => sum + (client.remaining_amount || 0), 0);
       const activeCases = clients.filter(client => {
         const totalPaid = client.total_paid || 0;
         const contractAmount = client.contract_amount || 0;
         return totalPaid < contractAmount;
       }).length;
+
+      // Клиенты с contract_date в выбранном месяце (для total_contracts_sum)
+      const clientsInMonth = allClients?.filter(client => {
+        if (!client.contract_date) return false;
+        const contractDate = new Date(client.contract_date);
+        const contractMonth = contractDate.getMonth() + 1;
+        const contractYear = contractDate.getFullYear();
+        return contractYear === year && contractMonth === month;
+      }) || [];
+      const totalContractAmount = clientsInMonth.reduce((sum, client) => sum + (client.contract_amount || 0), 0);
 
       // Получаем новых клиентов за выбранный месяц (без фильтра по статусу - новые клиенты учитываются независимо)
       let newClientsQuery = supabase
