@@ -105,7 +105,8 @@ const Index = () => {
         });
 
         const totalClients = clients.length;
-        const totalContractAmount = clients.reduce((sum, client) => sum + (client.contract_amount || 0), 0);
+        // Общая сумма договоров - по ВСЕМ клиентам без фильтра по статусу
+        const totalContractAmount = allClients?.reduce((sum, client) => sum + (client.contract_amount || 0), 0) || 0;
         const activeCases = clients.filter(client => {
           const totalPaid = client.total_paid || 0;
           const contractAmount = client.contract_amount || 0;
