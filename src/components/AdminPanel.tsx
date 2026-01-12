@@ -20,6 +20,7 @@ import { SuspendedClientsHistory } from "./SuspendedClientsHistory";
 import { AllPaymentsDialog } from "./AllPaymentsDialog";
 import { PaymentPlanBreakdownDialog } from "./PaymentPlanBreakdownDialog";
 import { MetricClientsDialog, MetricType } from "./MetricClientsDialog";
+import { EmployeesListDialog } from "./EmployeesListDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -104,6 +105,7 @@ export const AdminPanel = () => {
   const [allPaymentsDialogOpen, setAllPaymentsDialogOpen] = useState(false);
   const [planBreakdownDialogOpen, setPlanBreakdownDialogOpen] = useState(false);
   const [metricDialogOpen, setMetricDialogOpen] = useState(false);
+  const [employeesDialogOpen, setEmployeesDialogOpen] = useState(false);
   const [selectedMetricType, setSelectedMetricType] = useState<MetricType>('totalClients');
   const [syncingMetrics, setSyncingMetrics] = useState(false);
 
@@ -797,7 +799,10 @@ export const AdminPanel = () => {
 
           {/* Общая статистика */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => setEmployeesDialogOpen(true)}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-blue-500/10 rounded-full">
@@ -1245,6 +1250,11 @@ export const AdminPanel = () => {
         selectedMonth={selectedMonth}
         selectedYear={selectedYear}
         selectedEmployee={selectedEmployee}
+      />
+
+      <EmployeesListDialog
+        open={employeesDialogOpen}
+        onOpenChange={setEmployeesDialogOpen}
       />
     </div>
   );
