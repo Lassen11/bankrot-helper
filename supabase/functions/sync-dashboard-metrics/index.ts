@@ -21,6 +21,8 @@ interface DashboardMetricsPayload {
   suspended_contract_amount: number;
   suspended_monthly_payment_sum: number;
   total_contracts_sum: number;
+  debitorka_plan: number;
+  debitorka_fact: number;
   company: string;
   user_id: string;
   date: string;
