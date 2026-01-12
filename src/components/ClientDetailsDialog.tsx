@@ -329,7 +329,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       // Авансовый платеж
       paymentsToCreate.push({
         client_id: clientId,
-        user_id: user.id,
+        user_id: client.employee_id, // Используем ID сотрудника-владельца клиента
         payment_number: 0,
         original_amount: editedClient.first_payment || client.first_payment,
         due_date: startDate.toISOString().split('T')[0],
@@ -352,7 +352,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
         
         paymentsToCreate.push({
           client_id: clientId,
-          user_id: user.id,
+          user_id: client.employee_id, // Используем ID сотрудника-владельца клиента
           payment_number: i,
           original_amount: monthlyAmount,
           due_date: paymentDate.toISOString().split('T')[0],

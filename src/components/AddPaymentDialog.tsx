@@ -26,12 +26,14 @@ import { cn } from "@/lib/utils";
 
 interface AddPaymentDialogProps {
   clientId: string;
+  employeeId: string; // ID сотрудника-владельца клиента
   onPaymentAdded: () => void;
   existingPaymentsCount: number;
 }
 
 export function AddPaymentDialog({ 
-  clientId, 
+  clientId,
+  employeeId,
   onPaymentAdded,
   existingPaymentsCount 
 }: AddPaymentDialogProps) {
@@ -62,7 +64,7 @@ export function AddPaymentDialog({
         .from("payments")
         .insert({
           client_id: clientId,
-          user_id: user.id,
+          user_id: employeeId, // Используем ID сотрудника-владельца клиента
           payment_number: existingPaymentsCount + 1,
           original_amount: amountNumber,
           due_date: format(dueDate, "yyyy-MM-dd"),
