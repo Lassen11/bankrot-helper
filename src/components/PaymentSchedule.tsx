@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { AddPaymentDialog } from "./AddPaymentDialog";
 interface PaymentScheduleProps {
   clientId: string;
+  employeeId: string; // ID сотрудника-владельца клиента
   contractAmount: number;
   firstPayment: number;
   monthlyPayment: number;
@@ -47,6 +48,7 @@ const ACCOUNT_OPTIONS = [
 
 export const PaymentSchedule = ({
   clientId,
+  employeeId,
   contractAmount,
   firstPayment,
   monthlyPayment,
@@ -143,7 +145,7 @@ export const PaymentSchedule = ({
 
       paymentsToCreate.push({
         client_id: clientId,
-        user_id: user.id,
+        user_id: employeeId, // Используем ID сотрудника-владельца клиента
         payment_number: i,
         original_amount: monthlyPayment,
         due_date: paymentDate.toISOString().split('T')[0],
@@ -417,7 +419,7 @@ export const PaymentSchedule = ({
 
         paymentsToCreate.push({
           client_id: clientId,
-          user_id: user.id,
+          user_id: employeeId, // Используем ID сотрудника-владельца клиента
           payment_number: lastCompletedNumber + i,
           original_amount: monthlyPayment,
           due_date: paymentDate.toISOString().split('T')[0],
@@ -473,7 +475,8 @@ export const PaymentSchedule = ({
           <div className="flex items-center gap-2">
             {isAdmin && (
               <AddPaymentDialog 
-                clientId={clientId} 
+                clientId={clientId}
+                employeeId={employeeId}
                 onPaymentAdded={initializePayments}
                 existingPaymentsCount={payments.length}
               />
