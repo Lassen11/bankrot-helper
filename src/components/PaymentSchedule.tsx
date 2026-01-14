@@ -136,7 +136,9 @@ export const PaymentSchedule = ({
     if (!user) return;
 
     const paymentsToCreate = [];
-    const startDate = new Date(contractDate);
+    // Парсим дату контракта корректно, чтобы избежать сдвига из-за часового пояса
+    const [year, month, day] = contractDate.split('-').map(Number);
+    const startDate = new Date(year, month - 1, day);
 
     // Авансовый платеж уже создан при создании клиента, начинаем с ежемесячных платежей
     // Ежемесячные платежи - используем указанный день месяца из поля payment_day
@@ -404,9 +406,14 @@ export const PaymentSchedule = ({
         .limit(1);
 
       const lastCompletedNumber = completedPayments?.[0]?.payment_number ?? 0;
-      const lastCompletedDate = completedPayments?.[0]?.due_date 
-        ? new Date(completedPayments[0].due_date)
-        : new Date(contractDate);
+      let lastCompletedDate: Date;
+      if (completedPayments?.[0]?.due_date) {
+        const [y, m, d] = completedPayments[0].due_date.split('-').map(Number);
+        lastCompletedDate = new Date(y, m - 1, d);
+      } else {
+        const [y, m, d] = contractDate.split('-').map(Number);
+        lastCompletedDate = new Date(y, m - 1, d);
+      }
       
       // Создаем новые платежи начиная со следующего номера после последнего выполненного
       const paymentsToCreate = [];
