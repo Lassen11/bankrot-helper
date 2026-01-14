@@ -419,6 +419,22 @@ export const PaymentSchedule = ({
       const paymentsToCreate = [];
       const remainingPaymentsCount = installmentPeriod - lastCompletedNumber;
 
+      console.log('Regenerating schedule:', {
+        lastCompletedNumber,
+        installmentPeriod,
+        remainingPaymentsCount,
+        lastCompletedDate: lastCompletedDate.toISOString(),
+        paymentDay
+      });
+
+      // Если не осталось платежей для создания, просто обновляем UI
+      if (remainingPaymentsCount <= 0) {
+        console.log('Нет платежей для создания - все уже выполнены');
+        await initializePayments();
+        toast.success('График платежей обновлен');
+        return;
+      }
+
       // Создаем ежемесячные платежи начиная от МЕСЯЦА последнего выполненного платежа
       // (не от конкретного дня), чтобы не было «перескоков» месяцев и дублей дат.
       for (let i = 1; i <= remainingPaymentsCount; i++) {
@@ -434,6 +450,8 @@ export const PaymentSchedule = ({
         });
       }
 
+      console.log('Payments to create:', paymentsToCreate);
+
       const { data, error } = await supabase
         .from('payments')
         .insert(paymentsToCreate)
@@ -441,7 +459,7 @@ export const PaymentSchedule = ({
 
       if (error) {
         console.error('Ошибка создания платежей:', error);
-        toast.error('Ошибка создания графика платежей');
+        toast.error('Ошибка создания графика платежей: ' + error.message);
         return;
       }
 
