@@ -145,14 +145,14 @@ export const PaymentSchedule = ({
     for (let i = 1; i <= installmentPeriod; i++) {
       const paymentDate = buildMonthlyDueDate(startDate, i);
 
-      paymentsToCreate.push({
-        client_id: clientId,
-        user_id: employeeId, // Используем ID сотрудника-владельца клиента
-        payment_number: i,
-        original_amount: monthlyPayment,
-        due_date: paymentDate.toISOString().split('T')[0],
-        payment_type: 'monthly'
-      });
+        paymentsToCreate.push({
+          client_id: clientId,
+          user_id: employeeId, // Используем ID сотрудника-владельца клиента
+          payment_number: i,
+          original_amount: monthlyPayment,
+          due_date: format(paymentDate, 'yyyy-MM-dd'),
+          payment_type: 'monthly'
+        });
     }
 
     const { data, error } = await supabase
@@ -445,7 +445,7 @@ export const PaymentSchedule = ({
           user_id: employeeId, // Используем ID сотрудника-владельца клиента
           payment_number: lastCompletedNumber + i,
           original_amount: monthlyPayment,
-          due_date: paymentDate.toISOString().split('T')[0],
+          due_date: format(paymentDate, 'yyyy-MM-dd'),
           payment_type: 'monthly'
         });
       }

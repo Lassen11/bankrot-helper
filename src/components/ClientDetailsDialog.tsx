@@ -332,7 +332,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
         user_id: client.employee_id, // Используем ID сотрудника-владельца клиента
         payment_number: 0,
         original_amount: editedClient.first_payment || client.first_payment,
-        due_date: startDate.toISOString().split('T')[0],
+        due_date: format(startDate, 'yyyy-MM-dd'),
         payment_type: 'advance'
       });
 
@@ -355,7 +355,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
           user_id: client.employee_id, // Используем ID сотрудника-владельца клиента
           payment_number: i,
           original_amount: monthlyAmount,
-          due_date: paymentDate.toISOString().split('T')[0],
+          due_date: format(paymentDate, 'yyyy-MM-dd'),
           payment_type: 'monthly'
         });
       }
