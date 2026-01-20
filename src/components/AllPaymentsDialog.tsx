@@ -27,6 +27,7 @@ export const AllPaymentsDialog = ({ open, onOpenChange }: AllPaymentsDialogProps
   const [selectedMonth, setSelectedMonth] = useState<string>((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(currentDate.getFullYear().toString());
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [payments, setPayments] = useState<Payment[]>([]);
   const [employees, setEmployees] = useState<Array<{ id: string; full_name: string }>>([]);
   const [loading, setLoading] = useState(false);
@@ -43,34 +44,42 @@ export const AllPaymentsDialog = ({ open, onOpenChange }: AllPaymentsDialogProps
   useEffect(() => {
     if (open) {
       fetchEmployees();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
       fetchPayments();
     }
-  }, [open, selectedMonth, selectedYear, selectedEmployee]);
+  }, [open, selectedMonth, selectedYear, selectedEmployee, selectedStatus]);
 
   const fetchEmployees = async () => {
-    const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
+    // Получаем сотрудников через user_roles и profiles вместо admin API
+    const { data: rolesData, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id');
     
-    if (usersError) {
-      console.error('Error fetching users:', usersError);
+    if (rolesError) {
+      console.error('Error fetching user roles:', rolesError);
       return;
     }
 
+    const userIds = rolesData?.map(r => r.user_id) || [];
+
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
-      .select('user_id, full_name');
+      .select('user_id, full_name')
+      .in('user_id', userIds);
     
     if (profilesError) {
       console.error('Error fetching profiles:', profilesError);
       return;
     }
 
-    const employeesList = usersData.users.map(user => {
-      const profile = profilesData?.find(p => p.user_id === user.id);
-      return {
-        id: user.id,
-        full_name: profile?.full_name || user.email || 'Без имени'
-      };
-    });
+    const employeesList = profilesData?.map(profile => ({
+      id: profile.user_id,
+      full_name: profile.full_name || 'Без имени'
+    })) || [];
 
     setEmployees(employeesList);
   };
@@ -95,12 +104,19 @@ export const AllPaymentsDialog = ({ open, onOpenChange }: AllPaymentsDialogProps
         user_id,
         client_id
       `)
-      .gte('due_date', startDate.toISOString().split('T')[0])
-      .lte('due_date', endDate.toISOString().split('T')[0])
+      .gte('due_date', format(startDate, 'yyyy-MM-dd'))
+      .lte('due_date', format(endDate, 'yyyy-MM-dd'))
       .order('due_date', { ascending: false });
 
     if (selectedEmployee !== 'all') {
       query = query.eq('user_id', selectedEmployee);
+    }
+
+    // Фильтр по статусу
+    if (selectedStatus === 'completed') {
+      query = query.eq('is_completed', true);
+    } else if (selectedStatus === 'pending') {
+      query = query.eq('is_completed', false);
     }
 
     const { data: paymentsData, error: paymentsError } = await query;
@@ -112,11 +128,11 @@ export const AllPaymentsDialog = ({ open, onOpenChange }: AllPaymentsDialogProps
     }
 
     const clientIds = [...new Set(paymentsData?.map(p => p.client_id))];
+    
+    // Получаем ВСЕХ клиентов без фильтрации по статусу
     const { data: clientsData } = await supabase
       .from('clients')
       .select('id, full_name')
-      .eq('is_terminated', false)
-      .eq('is_suspended', false)
       .in('id', clientIds);
 
     const { data: profilesData } = await supabase
@@ -149,7 +165,7 @@ export const AllPaymentsDialog = ({ open, onOpenChange }: AllPaymentsDialogProps
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
@@ -197,6 +213,17 @@ export const AllPaymentsDialog = ({ open, onOpenChange }: AllPaymentsDialogProps
                     {employee.full_name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Статус" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все статусы</SelectItem>
+                <SelectItem value="completed">Выполнен</SelectItem>
+                <SelectItem value="pending">Ожидается</SelectItem>
               </SelectContent>
             </Select>
           </div>
