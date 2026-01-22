@@ -377,23 +377,38 @@ export const PaymentSchedule = ({
     if (!user || !clientId) return;
     
     // Подтверждение действия
-    if (!confirm('Вы уверены, что хотите пересоздать график платежей? Даты всех невыполненных платежей будут обновлены согласно полю "День платежа".')) {
+    if (!confirm('Вы уверены, что хотите пересоздать график платежей? Даты всех невыполненных платежей будут обновлены согласно полю "День платежа". Выполненные платежи сохранятся.')) {
       return;
     }
 
     setLoading(true);
     try {
-      // Удаляем только невыполненные платежи
-      const { error: deleteError } = await supabase
+      // Сначала получаем ID невыполненных платежей, чтобы удалить только их
+      const { data: incompletePayments, error: fetchError } = await supabase
         .from('payments')
-        .delete()
+        .select('id')
         .eq('client_id', clientId)
         .eq('is_completed', false);
 
-      if (deleteError) {
-        console.error('Ошибка удаления платежей:', deleteError);
-        toast.error('Ошибка удаления старых платежей');
+      if (fetchError) {
+        console.error('Ошибка получения платежей:', fetchError);
+        toast.error('Ошибка получения списка платежей');
         return;
+      }
+
+      // Удаляем только невыполненные платежи по их ID
+      if (incompletePayments && incompletePayments.length > 0) {
+        const idsToDelete = incompletePayments.map(p => p.id);
+        const { error: deleteError } = await supabase
+          .from('payments')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (deleteError) {
+          console.error('Ошибка удаления платежей:', deleteError);
+          toast.error('Ошибка удаления старых платежей');
+          return;
+        }
       }
 
       // Получаем выполненные платежи для определения следующего порядкового номера и даты
