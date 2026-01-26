@@ -285,6 +285,47 @@ export const PaymentSchedule = ({
       return;
     }
 
+    // Проверяем, полностью ли оплачен договор
+    if (newCompletedStatus && newTotalPaid >= contractAmount) {
+      // Завершаем клиента
+      const { error: completeError } = await supabase
+        .from('clients')
+        .update({ 
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', clientId);
+
+      if (completeError) {
+        console.error('Ошибка завершения клиента:', completeError);
+      }
+
+      // Удаляем все неоплаченные платежи
+      const { error: deleteError } = await supabase
+        .from('payments')
+        .delete()
+        .eq('client_id', clientId)
+        .eq('is_completed', false);
+
+      if (deleteError) {
+        console.error('Ошибка удаления неоплаченных платежей:', deleteError);
+      } else {
+        toast.success('Договор полностью оплачен! Клиент завершен.');
+      }
+
+      // Обновляем локальное состояние - оставляем только выполненные платежи
+      const completedPayments = payments
+        .map(p => p.id === paymentId ? { ...p, is_completed: true } : p)
+        .filter(p => p.is_completed);
+      setPayments(completedPayments);
+      
+      // Пересчитываем статистику
+      updatePaymentStats(completedPayments);
+      
+      // Уведомляем родительский компонент об обновлении
+      onPaymentUpdate?.();
+      return;
+    }
+
     // Обновляем локальное состояние платежей
     const updatedPayments = payments.map(p => 
       p.id === paymentId 
