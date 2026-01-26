@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { PaymentProgress } from "@/components/PaymentProgress";
 import { PaymentSchedule } from "@/components/PaymentSchedule";
 import { ReceiptManager } from "@/components/ReceiptManager";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Edit, Save, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 interface Client {
   id: string;
   full_name: string;
@@ -37,10 +34,6 @@ export default function ClientView() {
   }>();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    deposit_paid: 0
-  });
   const [remainingPayments, setRemainingPayments] = useState(0);
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
   useEffect(() => {
@@ -72,9 +65,6 @@ export default function ClientView() {
         return;
       }
       setClient(data);
-      setEditData({
-        deposit_paid: data.deposit_paid || 0
-      });
 
       // Рассчитываем количество оставшихся месяцев на основе остатка к оплате
       const totalPaidAmount = (data.total_paid || 0) + (data.deposit_paid || 0);
@@ -89,35 +79,6 @@ export default function ClientView() {
       toast.error('Произошла ошибка');
     } finally {
       setLoading(false);
-    }
-  };
-  const handleSave = async () => {
-    if (!client) return;
-    try {
-      // Рассчитываем новый остаток с учетом депозита
-      const totalPaidAmount = (client.total_paid || 0) + editData.deposit_paid;
-      const newRemainingAmount = Math.max(0, client.contract_amount - totalPaidAmount);
-      const {
-        error
-      } = await supabase.from('clients').update({
-        deposit_paid: editData.deposit_paid,
-        remaining_amount: newRemainingAmount
-      }).eq('id', client.id);
-      if (error) {
-        toast.error('Ошибка при сохранении');
-        return;
-      }
-
-      // Пересчитываем дату завершения и оставшиеся месяцы
-      const monthsRemaining = client.monthly_payment > 0 ? Math.ceil(newRemainingAmount / client.monthly_payment) : 0;
-      setRemainingPayments(monthsRemaining);
-      const newCompletionDate = calculateCompletionDate(client.contract_amount, client.total_paid || 0, editData.deposit_paid, client.monthly_payment);
-      setCompletionDate(newCompletionDate);
-      toast.success('Данные сохранены');
-      setIsEditing(false);
-      await fetchClient();
-    } catch (error) {
-      toast.error('Произошла ошибка при сохранении');
     }
   };
   const formatAmount = (amount: number) => {
@@ -255,41 +216,33 @@ export default function ClientView() {
           fetchClient();
         }} />
 
-          {/* Payment Management */}
+          {/* Payment Info */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Управление платежами</CardTitle>
-                {!isEditing ? <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Редактировать
-                  </Button> : <div className="flex gap-2">
-                    <Button onClick={handleSave} size="sm">
-                      <Save className="h-4 w-4 mr-2" />
-                      Сохранить
-                    </Button>
-                     <Button onClick={() => {
-                  setIsEditing(false);
-                  setEditData({
-                    deposit_paid: client.deposit_paid || 0
-                  });
-                }} variant="outline" size="sm">
-                      <X className="h-4 w-4 mr-2" />
-                      Отмена
-                    </Button>
-                  </div>}
-              </div>
+              <CardTitle>Информация о платежах</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <Label htmlFor="deposit_paid">Внесенная сумма депозита (₽)</Label>
-                  <Input id="deposit_paid" type="number" step="0.01" min="0" value={isEditing ? editData.deposit_paid : client.deposit_paid || 0} onChange={e => setEditData(prev => ({
-                  ...prev,
-                  deposit_paid: parseFloat(e.target.value) || 0
-                }))} readOnly={!isEditing} className={!isEditing ? "bg-muted cursor-default" : ""} />
+                  <span className="text-muted-foreground">Сумма депозита (авансовые платежи):</span>
+                  <p className="font-semibold">{formatAmount(client.deposit_paid || 0)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Всего оплачено:</span>
+                  <p className="font-semibold">{formatAmount(client.total_paid || 0)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Остаток к оплате:</span>
+                  <p className="font-semibold">{formatAmount(client.remaining_amount)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Дата договора:</span>
+                  <p className="font-semibold">{new Date(client.contract_date).toLocaleDateString('ru-RU')}</p>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-4">
+                * Сумма депозита рассчитывается автоматически на основе выполненных авансовых платежей
+              </p>
             </CardContent>
           </Card>
         </div>
