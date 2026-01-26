@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, Edit, CalendarIcon, RefreshCw } from "lucide-react";
+import { Check, Edit, CalendarIcon, RefreshCw, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -414,6 +414,77 @@ export const PaymentSchedule = ({
     return true; // Разрешаем отмечать платежи без обязательной загрузки чеков
   };
 
+  const deletePayment = async (paymentId: string) => {
+    if (!isAdmin) {
+      toast.error('Только администратор может удалять платежи');
+      return;
+    }
+
+    const payment = payments.find(p => p.id === paymentId);
+    if (!payment) return;
+
+    if (!confirm(`Вы уверены, что хотите удалить платеж "${payment.payment_type === 'advance' ? 'Авансовый платеж' : payment.payment_type === 'additional' ? 'Доп. счёт' : `Платеж ${payment.payment_number}`}"?`)) {
+      return;
+    }
+
+    // Если платеж был выполнен, нужно откатить сумму
+    if (payment.is_completed) {
+      const paymentAmount = payment.custom_amount ?? payment.original_amount;
+      
+      const { data: clientData, error: clientFetchError } = await supabase
+        .from('clients')
+        .select('total_paid, deposit_paid, contract_amount')
+        .eq('id', clientId)
+        .single();
+
+      if (clientFetchError || !clientData) {
+        toast.error('Ошибка получения данных клиента');
+        return;
+      }
+
+      const newTotalPaid = Math.max(0, (clientData.total_paid || 0) - paymentAmount);
+      const newDepositPaid = Math.max(0, (clientData.deposit_paid || 0) - paymentAmount);
+      const newRemainingAmount = Math.max(0, clientData.contract_amount - newTotalPaid);
+
+      const { error: clientUpdateError } = await supabase
+        .from('clients')
+        .update({ 
+          total_paid: newTotalPaid,
+          deposit_paid: newDepositPaid,
+          remaining_amount: newRemainingAmount
+        })
+        .eq('id', clientId);
+
+      if (clientUpdateError) {
+        toast.error('Ошибка обновления суммы клиента');
+        return;
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from('payments')
+      .delete()
+      .eq('id', paymentId);
+
+    if (deleteError) {
+      console.error('Ошибка удаления платежа:', deleteError);
+      toast.error('Ошибка удаления платежа');
+      return;
+    }
+
+    // Обновляем локальное состояние
+    const updatedPayments = payments.filter(p => p.id !== paymentId);
+    setPayments(updatedPayments);
+    
+    // Пересчитываем статистику
+    updatePaymentStats(updatedPayments);
+    
+    // Уведомляем родительский компонент
+    onPaymentUpdate?.();
+    
+    toast.success('Платеж удален');
+  };
+
   const regeneratePaymentSchedule = async () => {
     if (!user || !clientId) return;
     
@@ -737,6 +808,16 @@ export const PaymentSchedule = ({
                        >
                          <Edit className="w-3 h-3" />
                        </Button>
+                       {isAdmin && (
+                         <Button 
+                           onClick={() => deletePayment(payment.id)}
+                           size="sm" 
+                           variant="ghost" 
+                           className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                         >
+                           <Trash2 className="w-3 h-3" />
+                         </Button>
+                       )}
                      </div>
                    )}
                  </div>
