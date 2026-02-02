@@ -495,6 +495,21 @@ export const PaymentSchedule = ({
 
     setLoading(true);
     try {
+      // Получаем актуальные данные клиента (remaining_amount)
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('remaining_amount')
+        .eq('id', clientId)
+        .single();
+
+      if (clientError || !clientData) {
+        console.error('Ошибка получения данных клиента:', clientError);
+        toast.error('Ошибка получения данных клиента');
+        return;
+      }
+
+      const remainingAmount = clientData.remaining_amount || 0;
+
       // Удаляем ВСЕ невыполненные платежи напрямую (более надёжно)
       const { error: deleteError } = await supabase
         .from('payments')
@@ -524,51 +539,54 @@ export const PaymentSchedule = ({
 
       // Находим максимальный номер платежа среди всех выполненных (включая advance/first)
       let maxPaymentNumber = 0;
-      let lastCompletedDate: Date;
       
       if (completedPayments && completedPayments.length > 0) {
         // Берём максимальный payment_number (может быть 0 для авансового)
         maxPaymentNumber = Math.max(...completedPayments.map(p => p.payment_number));
-        
-        // Для даты берём последний выполненный платеж по дате
-        const sortedByDate = [...completedPayments].sort((a, b) => 
-          new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
-        );
-        const [y, m, d] = sortedByDate[0].due_date.split('-').map(Number);
-        lastCompletedDate = new Date(y, m - 1, d);
-      } else {
-        const [y, m, d] = contractDate.split('-').map(Number);
-        lastCompletedDate = new Date(y, m - 1, d);
       }
-      
-      // Создаем новые платежи начиная со следующего номера после максимального выполненного
-      const paymentsToCreate = [];
-      const remainingPaymentsCount = installmentPeriod - maxPaymentNumber;
 
-      console.log('Regenerating schedule:', {
-        maxPaymentNumber,
-        installmentPeriod,
-        remainingPaymentsCount,
-        lastCompletedDate: lastCompletedDate.toISOString(),
-        paymentDay
-      });
-
-      // Если не осталось платежей для создания, просто обновляем UI
-      if (remainingPaymentsCount <= 0) {
-        console.log('Нет платежей для создания - все уже выполнены');
+      // Если остаток = 0, платежи не нужны
+      if (remainingAmount <= 0) {
+        console.log('Остаток = 0, платежи не нужны');
         await initializePayments();
         toast.success('График платежей обновлен');
         return;
       }
 
-      // Создаем ежемесячные платежи начиная от МЕСЯЦА последнего выполненного платежа
-      for (let i = 1; i <= remainingPaymentsCount; i++) {
-        const paymentDate = buildMonthlyDueDate(lastCompletedDate, i);
+      // Рассчитываем количество платежей на основе ОСТАТКА К ОПЛАТЕ
+      const remainingPaymentsCount = Math.ceil(remainingAmount / monthlyPayment);
+      
+      // Для даты начинаем от ТЕКУЩЕЙ даты, а не от последнего выполненного платежа
+      // Это важно, чтобы следующий платеж был в текущем или следующем месяце
+      const today = new Date();
+      
+      console.log('Regenerating schedule:', {
+        maxPaymentNumber,
+        remainingAmount,
+        monthlyPayment,
+        remainingPaymentsCount,
+        startDate: today.toISOString(),
+        paymentDay
+      });
+
+      const paymentsToCreate = [];
+
+      // Создаем ежемесячные платежи начиная с текущего/следующего месяца
+      for (let i = 0; i < remainingPaymentsCount; i++) {
+        // Рассчитываем дату: если день платежа уже прошёл в этом месяце, начинаем со следующего
+        let monthOffset = i;
+        if (i === 0 && today.getDate() > paymentDay) {
+          monthOffset = 1; // Следующий месяц для первого платежа
+        } else if (i > 0) {
+          monthOffset = today.getDate() > paymentDay ? i + 1 : i;
+        }
+        
+        const paymentDate = buildMonthlyDueDate(today, monthOffset);
 
         paymentsToCreate.push({
           client_id: clientId,
           user_id: employeeId,
-          payment_number: maxPaymentNumber + i,
+          payment_number: maxPaymentNumber + i + 1,
           original_amount: monthlyPayment,
           due_date: format(paymentDate, 'yyyy-MM-dd'),
           payment_type: 'monthly'
