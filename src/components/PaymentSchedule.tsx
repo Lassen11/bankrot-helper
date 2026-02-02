@@ -495,59 +495,58 @@ export const PaymentSchedule = ({
 
     setLoading(true);
     try {
-      // Сначала получаем ID невыполненных платежей, чтобы удалить только их
-      const { data: incompletePayments, error: fetchError } = await supabase
+      // Удаляем ВСЕ невыполненные платежи напрямую (более надёжно)
+      const { error: deleteError } = await supabase
         .from('payments')
-        .select('id')
+        .delete()
         .eq('client_id', clientId)
         .eq('is_completed', false);
 
-      if (fetchError) {
-        console.error('Ошибка получения платежей:', fetchError);
-        toast.error('Ошибка получения списка платежей');
+      if (deleteError) {
+        console.error('Ошибка удаления платежей:', deleteError);
+        toast.error('Ошибка удаления старых платежей: ' + deleteError.message);
         return;
       }
 
-      // Удаляем только невыполненные платежи по их ID
-      if (incompletePayments && incompletePayments.length > 0) {
-        const idsToDelete = incompletePayments.map(p => p.id);
-        const { error: deleteError } = await supabase
-          .from('payments')
-          .delete()
-          .in('id', idsToDelete);
-
-        if (deleteError) {
-          console.error('Ошибка удаления платежей:', deleteError);
-          toast.error('Ошибка удаления старых платежей');
-          return;
-        }
-      }
-
-      // Получаем выполненные платежи для определения следующего порядкового номера и даты
-      const { data: completedPayments } = await supabase
+      // Получаем ВСЕ выполненные платежи для определения максимального номера
+      const { data: completedPayments, error: completedError } = await supabase
         .from('payments')
-        .select('payment_number, due_date')
+        .select('payment_number, due_date, payment_type')
         .eq('client_id', clientId)
         .eq('is_completed', true)
-        .order('due_date', { ascending: false })
-        .limit(1);
+        .order('payment_number', { ascending: false });
 
-      const lastCompletedNumber = completedPayments?.[0]?.payment_number ?? 0;
+      if (completedError) {
+        console.error('Ошибка получения выполненных платежей:', completedError);
+        toast.error('Ошибка получения данных');
+        return;
+      }
+
+      // Находим максимальный номер платежа среди всех выполненных (включая advance/first)
+      let maxPaymentNumber = 0;
       let lastCompletedDate: Date;
-      if (completedPayments?.[0]?.due_date) {
-        const [y, m, d] = completedPayments[0].due_date.split('-').map(Number);
+      
+      if (completedPayments && completedPayments.length > 0) {
+        // Берём максимальный payment_number (может быть 0 для авансового)
+        maxPaymentNumber = Math.max(...completedPayments.map(p => p.payment_number));
+        
+        // Для даты берём последний выполненный платеж по дате
+        const sortedByDate = [...completedPayments].sort((a, b) => 
+          new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+        );
+        const [y, m, d] = sortedByDate[0].due_date.split('-').map(Number);
         lastCompletedDate = new Date(y, m - 1, d);
       } else {
         const [y, m, d] = contractDate.split('-').map(Number);
         lastCompletedDate = new Date(y, m - 1, d);
       }
       
-      // Создаем новые платежи начиная со следующего номера после последнего выполненного
+      // Создаем новые платежи начиная со следующего номера после максимального выполненного
       const paymentsToCreate = [];
-      const remainingPaymentsCount = installmentPeriod - lastCompletedNumber;
+      const remainingPaymentsCount = installmentPeriod - maxPaymentNumber;
 
       console.log('Regenerating schedule:', {
-        lastCompletedNumber,
+        maxPaymentNumber,
         installmentPeriod,
         remainingPaymentsCount,
         lastCompletedDate: lastCompletedDate.toISOString(),
@@ -563,14 +562,13 @@ export const PaymentSchedule = ({
       }
 
       // Создаем ежемесячные платежи начиная от МЕСЯЦА последнего выполненного платежа
-      // (не от конкретного дня), чтобы не было «перескоков» месяцев и дублей дат.
       for (let i = 1; i <= remainingPaymentsCount; i++) {
         const paymentDate = buildMonthlyDueDate(lastCompletedDate, i);
 
         paymentsToCreate.push({
           client_id: clientId,
-          user_id: employeeId, // Используем ID сотрудника-владельца клиента
-          payment_number: lastCompletedNumber + i,
+          user_id: employeeId,
+          payment_number: maxPaymentNumber + i,
           original_amount: monthlyPayment,
           due_date: format(paymentDate, 'yyyy-MM-dd'),
           payment_type: 'monthly'
