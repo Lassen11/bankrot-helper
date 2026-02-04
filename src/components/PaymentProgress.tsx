@@ -22,9 +22,9 @@ export const PaymentProgress = ({
     }).format(amount);
   };
 
-  // Общий прогресс использует только total_paid (депозит уже включен в эту сумму)
+  // Используем totalPaid для обоих прогрессов (депозит и общий прогресс показывают одну сумму)
   const mainProgress = contractAmount > 0 ? (totalPaid / contractAmount) * 100 : 0;
-  const depositProgress = depositTarget > 0 ? (depositPaid / depositTarget) * 100 : 0;
+  const depositProgress = depositTarget > 0 ? (totalPaid / depositTarget) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -33,17 +33,17 @@ export const PaymentProgress = ({
         <div className="flex justify-between items-center">
           <h3 className="text-sm font-medium text-muted-foreground">Депозит</h3>
           <span className="text-sm text-muted-foreground">
-            {Math.round(depositProgress)}%
+            {Math.min(100, Math.round(depositProgress))}%
           </span>
         </div>
         <Progress 
-          value={depositProgress} 
+          value={Math.min(100, depositProgress)} 
           className="h-3"
         />
         <div className="flex justify-between text-sm gap-2">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Внесено:</span>
-            <span className="text-muted-foreground">{formatAmount(depositPaid)}</span>
+            <span className="text-muted-foreground">{formatAmount(totalPaid)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Цель:</span>
