@@ -333,6 +333,7 @@ export const ClientForm = ({ onClientAdded }: ClientFormProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Рамазан Самурханов">Рамазан Самурханов</SelectItem>
+                <SelectItem value="Мария Бакшаева">Мария Бакшаева</SelectItem>
               </SelectContent>
             </Select>
           </div>
