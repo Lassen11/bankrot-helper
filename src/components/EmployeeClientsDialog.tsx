@@ -129,16 +129,21 @@ export const EmployeeClientsDialog = ({
 
   const handleDeleteClient = async (client: Client) => {
     try {
+      // Soft delete — помечаем клиента как расторгнутого вместо полного удаления
       const { error } = await supabase
         .from('clients')
-        .delete()
+        .update({
+          is_terminated: true,
+          terminated_at: new Date().toISOString(),
+          termination_reason: 'Удалён из системы',
+        })
         .eq('id', client.id);
 
       if (error) throw error;
 
       toast({
         title: "Успешно",
-        description: `Клиент ${client.full_name} был удален`,
+        description: `Клиент ${client.full_name} перемещён в архив (расторгнутые)`,
       });
 
       // Обновляем список клиентов
