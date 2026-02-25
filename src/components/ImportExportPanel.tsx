@@ -87,6 +87,7 @@ export const ImportExportPanel = () => {
         'ID Сотрудника': client.employee_id,
         'Дата договора': new Date(client.contract_date).toLocaleDateString('ru-RU'),
         'Город': client.city || '',
+        'Источник': client.source || '',
         'Сумма договора': client.contract_amount,
         'Период рассрочки (месяцы)': client.installment_period,
         'Первый взнос': client.first_payment,
@@ -112,6 +113,7 @@ export const ImportExportPanel = () => {
         { wch: 20 }, // ID Сотрудника
         { wch: 15 }, // Дата договора
         { wch: 20 }, // Город
+        { wch: 20 }, // Источник
         { wch: 15 }, // Сумма договора
         { wch: 15 }, // Период рассрочки
         { wch: 15 }, // Первый взнос
