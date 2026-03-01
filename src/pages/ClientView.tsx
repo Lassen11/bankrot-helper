@@ -9,6 +9,8 @@ import { ReceiptManager } from "@/components/ReceiptManager";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { GenerateCabinetLink } from "@/components/GenerateCabinetLink";
+import { BankruptcyStages } from "@/components/BankruptcyStages";
 interface Client {
   id: string;
   full_name: string;
@@ -245,6 +247,12 @@ export default function ClientView() {
               </p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Cabinet Link & Stages */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <GenerateCabinetLink clientId={client.id} />
+          <BankruptcyStages clientId={client.id} />
         </div>
       </div>
     </div>;

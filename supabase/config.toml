@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.auto-sync-metrics]
 verify_jwt = false
+
+[functions.get-client-cabinet]
+verify_jwt = false
