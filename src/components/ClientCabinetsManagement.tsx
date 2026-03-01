@@ -11,6 +11,7 @@ import { CabinetChatEmployee } from "./CabinetChatEmployee";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { EmployeeProfileEditor } from "./EmployeeProfileEditor";
+import { ClientTeamManagement } from "./ClientTeamManagement";
 
 interface CabinetInfo {
   client_id: string;
@@ -239,7 +240,7 @@ export function ClientCabinetsManagement() {
 
                   {/* Tabs: Stages + Chat */}
                   <Tabs defaultValue="stages" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="stages">Этапы</TabsTrigger>
                       <TabsTrigger value="chat" className="relative">
                         Чат
@@ -249,6 +250,7 @@ export function ClientCabinetsManagement() {
                           </Badge>
                         )}
                       </TabsTrigger>
+                      <TabsTrigger value="team">Команда</TabsTrigger>
                     </TabsList>
                     <TabsContent value="stages" className="p-0">
                       <BankruptcyStages clientId={cab.client_id} />
@@ -259,6 +261,9 @@ export function ClientCabinetsManagement() {
                           <CabinetChatEmployee clientId={cab.client_id} />
                         </CardContent>
                       </Card>
+                    </TabsContent>
+                    <TabsContent value="team" className="p-0">
+                      <ClientTeamManagement clientId={cab.client_id} />
                     </TabsContent>
                   </Tabs>
                 </div>
