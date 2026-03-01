@@ -51,6 +51,14 @@ Deno.serve(async (req) => {
 
       if (error) throw error
 
+      // Mark employee messages as read by client
+      await supabase
+        .from('cabinet_messages')
+        .update({ is_read_by_client: true })
+        .eq('client_id', clientId)
+        .eq('sender_type', 'employee')
+        .eq('is_read_by_client', false)
+
       return new Response(
         JSON.stringify({ messages }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
