@@ -104,7 +104,10 @@ Deno.serve(async (req) => {
       }
 
       const bytes = Uint8Array.from(atob(file_data), c => c.charCodeAt(0))
-      const filePath = `${clientId}/${Date.now()}_${fname}`
+      const safeFileName = fname
+        .normalize('NFKD')
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+      const filePath = `${clientId}/${Date.now()}_${safeFileName}`
 
       const { error: uploadError } = await supabase.storage
         .from('cabinet-files')
