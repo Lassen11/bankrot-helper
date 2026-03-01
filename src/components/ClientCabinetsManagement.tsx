@@ -10,6 +10,7 @@ import { BankruptcyStages } from "./BankruptcyStages";
 import { CabinetChatEmployee } from "./CabinetChatEmployee";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { EmployeeProfileEditor } from "./EmployeeProfileEditor";
 
 interface CabinetInfo {
   client_id: string;
@@ -147,6 +148,7 @@ export function ClientCabinetsManagement() {
 
   return (
     <div className="space-y-4">
+      <EmployeeProfileEditor />
       {cabinets.map((cab) => {
         const isExpanded = expandedId === cab.client_id;
         return (

@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     // Get client info
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('id, full_name, contract_date')
+      .select('id, full_name, contract_date, employee_id')
       .eq('id', tokenData.client_id)
       .single()
 
@@ -58,6 +58,24 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Client not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Get employee info
+    let employee = null
+    if (client.employee_id) {
+      const { data: empData } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url, bio')
+        .eq('user_id', client.employee_id)
+        .single()
+
+      if (empData) {
+        employee = {
+          full_name: empData.full_name,
+          avatar_url: empData.avatar_url,
+          bio: empData.bio,
+        }
+      }
     }
 
     // Get stages
@@ -75,7 +93,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ client, stages }),
+      JSON.stringify({ client: { id: client.id, full_name: client.full_name, contract_date: client.contract_date }, stages, employee }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
