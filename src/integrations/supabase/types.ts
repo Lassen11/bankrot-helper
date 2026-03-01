@@ -163,6 +163,47 @@ export type Database = {
           },
         ]
       }
+      cabinet_messages: {
+        Row: {
+          client_id: string
+          created_at: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          message: string
+          sender_id: string | null
+          sender_type: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          message?: string
+          sender_id?: string | null
+          sender_type?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          message?: string
+          sender_id?: string | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cabinet_messages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_cabinet_tokens: {
         Row: {
           client_id: string

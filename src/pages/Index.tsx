@@ -6,6 +6,7 @@ import { AdminPanel } from "@/components/AdminPanel";
 import { PaymentsCalendar } from "@/components/PaymentsCalendar";
 import { EmployeeBonus } from "@/components/EmployeeBonus";
 import { AgentsManagement } from "@/components/AgentsManagement";
+import { ClientCabinetsManagement } from "@/components/ClientCabinetsManagement";
 import { PaymentsClientsDialog } from "@/components/PaymentsClientsDialog";
 import { TerminatedClientsHistory } from "@/components/TerminatedClientsHistory";
 import { SuspendedClientsHistory } from "@/components/SuspendedClientsHistory";
@@ -324,14 +325,15 @@ const Index = () => {
           </div>
 
           <Tabs defaultValue="clients" className="w-full">
-            <TabsList className="grid w-full grid-cols-7">
-              <TabsTrigger value="clients">Список клиентов</TabsTrigger>
-              <TabsTrigger value="calendar">Календарь платежей</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-8">
+              <TabsTrigger value="clients">Клиенты</TabsTrigger>
+              <TabsTrigger value="calendar">Календарь</TabsTrigger>
               <TabsTrigger value="bonus">Премия</TabsTrigger>
               <TabsTrigger value="agents">Агенты</TabsTrigger>
+              <TabsTrigger value="cabinets">Кабинеты</TabsTrigger>
               <TabsTrigger value="terminated">Расторжения</TabsTrigger>
               <TabsTrigger value="suspended">Приостановки</TabsTrigger>
-              <TabsTrigger value="add-client">Добавить клиента</TabsTrigger>
+              <TabsTrigger value="add-client">Добавить</TabsTrigger>
             </TabsList>
             
             <TabsContent value="clients" className="space-y-6">
@@ -348,6 +350,10 @@ const Index = () => {
 
             <TabsContent value="agents" className="space-y-6">
               <AgentsManagement />
+            </TabsContent>
+
+            <TabsContent value="cabinets" className="space-y-6">
+              <ClientCabinetsManagement />
             </TabsContent>
 
             <TabsContent value="terminated" className="space-y-6">
