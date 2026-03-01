@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Send, Paperclip, FileText, Download } from "lucide-react";
+import { Send, Paperclip, FileText, Download, Trash2 } from "lucide-react";
 
 interface Message {
   id: string;
@@ -128,6 +128,18 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
     }
   };
 
+  const deleteMessage = async (msgId: string) => {
+    const { error } = await supabase
+      .from("cabinet_messages")
+      .delete()
+      .eq("id", msgId);
+    if (error) {
+      toast.error("Ошибка удаления сообщения");
+    } else {
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+    }
+  };
+
   return (
     <div className="flex flex-col h-[400px]">
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -141,13 +153,21 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
             key={msg.id}
             className={`flex ${msg.sender_type === "employee" ? "justify-end" : "justify-start"}`}
           >
-            <div
-              className={`max-w-[80%] rounded-lg px-3 py-2 ${
+            <div className={`relative group max-w-[80%] rounded-lg px-3 py-2 ${
                 msg.sender_type === "employee"
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted"
               }`}
             >
+              {msg.sender_type === "employee" && (
+                <button
+                  onClick={() => deleteMessage(msg.id)}
+                  className="absolute -top-2 -right-2 hidden group-hover:flex items-center justify-center h-5 w-5 rounded-full bg-destructive text-destructive-foreground"
+                  title="Удалить"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
               <span className={`text-[10px] font-medium block mb-0.5 ${
                 msg.sender_type === "employee" ? "text-primary-foreground/70" : "text-muted-foreground"
               }`}>
