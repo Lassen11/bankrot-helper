@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { BankruptcyTimeline } from "@/components/BankruptcyTimeline";
 import { CabinetChatClient } from "@/components/CabinetChatClient";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Stage {
@@ -20,12 +21,14 @@ interface EmployeeInfo {
   full_name: string | null;
   avatar_url: string | null;
   bio: string | null;
+  role_label?: string | null;
 }
 
 interface CabinetData {
   client: { id: string; full_name: string; contract_date: string };
   stages: Stage[];
   employee: EmployeeInfo | null;
+  employees?: EmployeeInfo[];
 }
 
 export default function ClientCabinet() {
@@ -86,7 +89,17 @@ export default function ClientCabinet() {
   }
 
   const completedCount = data.stages.filter((s) => s.is_completed).length;
-  const progressPercent = Math.round((completedCount / data.stages.length) * 100);
+  const progressPercent = data.stages.length > 0 ? Math.round((completedCount / data.stages.length) * 100) : 0;
+
+  // Use employees array if available, fallback to single employee
+  const specialists: EmployeeInfo[] = data.employees && data.employees.length > 0
+    ? data.employees
+    : data.employee ? [data.employee] : [];
+
+  const getInitials = (name: string | null) => {
+    if (!name) return "??";
+    return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4">
@@ -110,30 +123,32 @@ export default function ClientCabinet() {
           </CardContent>
         </Card>
 
-        {/* Employee card */}
-        {data.employee && data.employee.full_name && (
+        {/* Specialists cards */}
+        {specialists.length > 0 && (
           <Card>
-            <CardContent className="p-4 flex items-center gap-4">
-              <Avatar className="h-14 w-14">
-                {data.employee.avatar_url && (
-                  <AvatarImage src={data.employee.avatar_url} alt={data.employee.full_name} />
-                )}
-                <AvatarFallback>
-                  {data.employee.full_name
-                    .split(" ")
-                    .map((w) => w[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-xs text-muted-foreground">Ваш специалист</p>
-                <p className="font-semibold">{data.employee.full_name}</p>
-                {data.employee.bio && (
-                  <p className="text-sm text-muted-foreground">{data.employee.bio}</p>
-                )}
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">
+                {specialists.length === 1 ? "Ваш специалист" : "Ваши специалисты"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {specialists.map((emp, idx) => (
+                <div key={idx} className="flex items-center gap-4 p-3 rounded-lg bg-muted/40">
+                  <Avatar className="h-14 w-14">
+                    {emp.avatar_url && <AvatarImage src={emp.avatar_url} alt={emp.full_name || ""} />}
+                    <AvatarFallback>{getInitials(emp.full_name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold">{emp.full_name || "Специалист"}</p>
+                    {emp.role_label && (
+                      <Badge variant="secondary" className="text-xs mb-1">{emp.role_label}</Badge>
+                    )}
+                    {emp.bio && (
+                      <p className="text-sm text-muted-foreground">{emp.bio}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}

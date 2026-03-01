@@ -242,6 +242,38 @@ export type Database = {
           },
         ]
       }
+      client_employees: {
+        Row: {
+          client_id: string
+          created_at: string
+          employee_id: string
+          id: string
+          role_label: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          role_label?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          role_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_employees_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           city: string | null
