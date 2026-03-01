@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, ExternalLink, Link2, RefreshCw } from "lucide-react";
+import { Copy, ExternalLink, Link2, RefreshCw, Ban } from "lucide-react";
 
 const DEFAULT_STAGES = [
   { number: 1, title: "Сбор документов", description: "Сбор и подготовка необходимых документов для процедуры банкротства" },
@@ -27,7 +27,9 @@ interface GenerateCabinetLinkProps {
 export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [hasStages, setHasStages] = useState(false);
 
   useEffect(() => {
     checkExistingToken();
@@ -35,14 +37,22 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
 
   const checkExistingToken = async () => {
     try {
-      const { data } = await supabase
-        .from("client_cabinet_tokens")
-        .select("token")
-        .eq("client_id", clientId)
-        .eq("is_active", true)
-        .maybeSingle();
+      const [tokenRes, stagesRes] = await Promise.all([
+        supabase
+          .from("client_cabinet_tokens")
+          .select("token")
+          .eq("client_id", clientId)
+          .eq("is_active", true)
+          .maybeSingle(),
+        supabase
+          .from("bankruptcy_stages")
+          .select("id")
+          .eq("client_id", clientId)
+          .limit(1),
+      ]);
 
-      if (data) setToken(data.token);
+      if (tokenRes.data) setToken(tokenRes.data.token);
+      if (stagesRes.data && stagesRes.data.length > 0) setHasStages(true);
     } finally {
       setChecking(false);
     }
@@ -60,26 +70,49 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
 
       if (tokenError) throw tokenError;
 
-      // Create 12 default stages
-      const stages = DEFAULT_STAGES.map((s) => ({
-        client_id: clientId,
-        stage_number: s.number,
-        title: s.title,
-        description: s.description,
-      }));
+      // Create 12 default stages only if none exist
+      if (!hasStages) {
+        const stages = DEFAULT_STAGES.map((s) => ({
+          client_id: clientId,
+          stage_number: s.number,
+          title: s.title,
+          description: s.description,
+        }));
 
-      const { error: stagesError } = await supabase
-        .from("bankruptcy_stages")
-        .insert(stages);
+        const { error: stagesError } = await supabase
+          .from("bankruptcy_stages")
+          .insert(stages);
 
-      if (stagesError) throw stagesError;
+        if (stagesError) throw stagesError;
+        setHasStages(true);
+      }
 
       setToken(tokenData.token);
-      toast.success("Кабинет клиента создан");
+      toast.success("Ссылка на кабинет создана");
     } catch (error: any) {
       toast.error("Ошибка: " + (error.message || "Не удалось создать кабинет"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deactivateLink = async () => {
+    setDeactivating(true);
+    try {
+      const { error } = await supabase
+        .from("client_cabinet_tokens")
+        .update({ is_active: false })
+        .eq("client_id", clientId)
+        .eq("token", token);
+
+      if (error) throw error;
+
+      setToken(null);
+      toast.success("Ссылка деактивирована");
+    } catch (error: any) {
+      toast.error("Ошибка: " + (error.message || "Не удалось деактивировать"));
+    } finally {
+      setDeactivating(false);
     }
   };
 
@@ -121,6 +154,26 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
                 onClick={() => window.open(getCabinetUrl(), "_blank")}
               >
                 <ExternalLink className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateLink}
+                disabled={loading}
+              >
+                {loading ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                Новая ссылка
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={deactivateLink}
+                disabled={deactivating}
+              >
+                {deactivating ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <Ban className="h-3 w-3 mr-1" />}
+                Деактивировать
               </Button>
             </div>
           </div>
