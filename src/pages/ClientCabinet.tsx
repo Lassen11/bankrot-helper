@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BankruptcyTimeline } from "@/components/BankruptcyTimeline";
 import { CabinetChatClient } from "@/components/CabinetChatClient";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Stage {
@@ -15,9 +16,16 @@ interface Stage {
   completed_at: string | null;
 }
 
+interface EmployeeInfo {
+  full_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
 interface CabinetData {
   client: { id: string; full_name: string; contract_date: string };
   stages: Stage[];
+  employee: EmployeeInfo | null;
 }
 
 export default function ClientCabinet() {
@@ -101,6 +109,34 @@ export default function ClientCabinet() {
             <Progress value={progressPercent} className="h-3" />
           </CardContent>
         </Card>
+
+        {/* Employee card */}
+        {data.employee && data.employee.full_name && (
+          <Card>
+            <CardContent className="p-4 flex items-center gap-4">
+              <Avatar className="h-14 w-14">
+                {data.employee.avatar_url && (
+                  <AvatarImage src={data.employee.avatar_url} alt={data.employee.full_name} />
+                )}
+                <AvatarFallback>
+                  {data.employee.full_name
+                    .split(" ")
+                    .map((w) => w[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-xs text-muted-foreground">Ваш специалист</p>
+                <p className="font-semibold">{data.employee.full_name}</p>
+                {data.employee.bio && (
+                  <p className="text-sm text-muted-foreground">{data.employee.bio}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Timeline */}
         <Card>
