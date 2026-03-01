@@ -25,11 +25,11 @@ export function BankruptcyTimeline({ stages }: BankruptcyTimelineProps) {
         const isFuture = !isCompleted && !isCurrent;
 
         return (
-          <div key={stage.id} className="relative flex gap-4">
+          <div key={stage.id} className="relative flex gap-3 sm:gap-4">
             {/* Vertical line */}
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 ${
+                className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 z-10 ${
                   isCompleted
                     ? "bg-green-500 text-white"
                     : isCurrent
@@ -67,7 +67,7 @@ export function BankruptcyTimeline({ stages }: BankruptcyTimelineProps) {
                 )}
               </div>
               <h3
-                className={`font-semibold ${
+                className={`font-semibold text-sm sm:text-base ${
                   isCurrent ? "text-primary" : ""
                 }`}
               >

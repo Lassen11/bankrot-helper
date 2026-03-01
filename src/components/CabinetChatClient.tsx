@@ -116,7 +116,7 @@ export function CabinetChatClient({ token }: CabinetChatClientProps) {
   };
 
   return (
-    <div className="flex flex-col h-[400px]">
+    <div className="flex flex-col h-[300px] sm:h-[400px]">
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <p className="text-center text-muted-foreground text-sm py-8">
@@ -158,7 +158,7 @@ export function CabinetChatClient({ token }: CabinetChatClientProps) {
         ))}
       </div>
 
-      <div className="border-t p-3 flex gap-2">
+      <div className="border-t p-2 sm:p-3 flex gap-2">
         <input
           ref={fileInputRef}
           type="file"
