@@ -50,6 +50,12 @@ export function ClientCabinetsManagement() {
           const newMsg = payload.new as any;
           const cab = cabinets.find((c) => c.client_id === newMsg.client_id);
           if (cab) {
+            // Play notification sound
+            try {
+              const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVoGAACAgICAgICAgICAgICAf3hxam1yeH+DhoiIiIeFgXx3c3BubnBxcnR2eHl6fH1+f4CBgoOEhIWFhoaHh4eHh4eHhoaFhYSDgoGAf359fHt6eXl4eHd3d3d3d3d4eHl5ent7fH1+f4CAgYKDg4SFhYaGh4eHiIiIiIiIiIeHh4aGhYWEg4OCgYCAf359fHt6eXl4d3d3d3d3d3h4eXl6e3t8fX5/gICBgoODhIWFhoaHh4eIiIiIiIiIh4eHhoaFhYSDg4KBgIB/fn18e3p5eXh3d3d3d3d3eHh5eXp7e3x9fn+AgIGCg4OEhYWGhoeHh4iIiIiIiIiHh4eGhoWFhIODgoGAgH9+fXx7enl5eHd3d3d3d3d4eHl5ent7fH1+f4CAgYKDg4SFhYaGh4eHiIiIiIiIiA==");
+              audio.volume = 0.5;
+              audio.play().catch(() => {});
+            } catch {}
             toast.info(`Новое сообщение от клиента ${cab.client_name}`, {
               description: newMsg.message || "Файл",
               duration: 8000,
