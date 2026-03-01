@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BankruptcyTimeline } from "@/components/BankruptcyTimeline";
 import { CabinetChatClient } from "@/components/CabinetChatClient";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PaymentProgress } from "@/components/PaymentProgress";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -64,6 +64,11 @@ export default function ClientCabinet() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
+
+  const scrollToChat = useCallback(() => {
+    chatRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400);
@@ -299,14 +304,16 @@ export default function ClientCabinet() {
         )}
 
         {/* Chat */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Чат со специалистом</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <CabinetChatClient token={token!} />
-          </CardContent>
-        </Card>
+        <div ref={chatRef}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Чат со специалистом</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <CabinetChatClient token={token!} />
+            </CardContent>
+          </Card>
+        </div>
 
         <p className="text-center text-xs text-muted-foreground pb-4">
           Дата договора:{" "}
@@ -314,10 +321,20 @@ export default function ClientCabinet() {
         </p>
       </div>
 
+      {/* Floating "Написать Юристу" button */}
+      <Button
+        onClick={scrollToChat}
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full shadow-lg px-6 gap-2"
+      >
+        <MessageCircle className="h-4 w-4" />
+        Написать Юристу
+      </Button>
+
       {showScrollTop && (
         <Button
           onClick={scrollToTop}
           size="icon"
+          variant="outline"
           className="fixed bottom-6 right-6 z-50 rounded-full shadow-lg h-10 w-10 sm:hidden"
         >
           <ArrowUp className="h-5 w-5" />
