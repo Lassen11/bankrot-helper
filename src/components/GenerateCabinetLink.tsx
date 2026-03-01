@@ -140,7 +140,7 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
         {token ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Кабинет создан. Отправьте ссылку клиенту:
+              ✅ Кабинет создан. Управление кабинетом доступно на вкладке «Кабинеты».
             </p>
             <div className="flex gap-2">
               <code className="flex-1 bg-muted px-3 py-2 rounded text-xs break-all">
@@ -149,44 +149,6 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
               <Button variant="outline" size="icon" onClick={copyLink}>
                 <Copy className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => window.open(getCabinetUrl(), "_blank")}
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={generateLink}
-                disabled={loading}
-              >
-                {loading ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                Новая ссылка
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" disabled={deactivating}>
-                    {deactivating ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <Ban className="h-3 w-3 mr-1" />}
-                    Деактивировать
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Деактивировать ссылку?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Клиент больше не сможет перейти по текущей ссылке. Вы сможете сгенерировать новую ссылку.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Отмена</AlertDialogCancel>
-                    <AlertDialogAction onClick={deactivateLink}>Деактивировать</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
           </div>
         ) : (
