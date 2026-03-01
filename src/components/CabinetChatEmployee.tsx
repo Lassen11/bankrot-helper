@@ -5,6 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Send, Paperclip, FileText, Download, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Message {
   id: string;
@@ -27,6 +37,7 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMessages();
@@ -161,7 +172,7 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
             >
               {msg.sender_type === "employee" && (
                 <button
-                  onClick={() => deleteMessage(msg.id)}
+                  onClick={() => setDeleteId(msg.id)}
                   className="absolute -top-2 -right-2 hidden group-hover:flex items-center justify-center h-5 w-5 rounded-full bg-destructive text-destructive-foreground"
                   title="Удалить"
                 >
@@ -221,6 +232,22 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
           <Send className="h-4 w-4" />
         </Button>
       </div>
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить сообщение?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Сообщение будет удалено навсегда и пропадёт из чата клиента.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteId) { deleteMessage(deleteId); setDeleteId(null); } }}>
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
