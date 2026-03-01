@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BankruptcyTimeline } from "@/components/BankruptcyTimeline";
 import { CabinetChatClient } from "@/components/CabinetChatClient";
+import { PaymentProgress } from "@/components/PaymentProgress";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Stage {
@@ -24,11 +26,34 @@ interface EmployeeInfo {
   role_label?: string | null;
 }
 
+interface Payment {
+  payment_number: number;
+  original_amount: number;
+  custom_amount: number | null;
+  due_date: string;
+  is_completed: boolean;
+  payment_type: string;
+  completed_at: string | null;
+}
+
 interface CabinetData {
-  client: { id: string; full_name: string; contract_date: string };
+  client: {
+    id: string;
+    full_name: string;
+    contract_date: string;
+    contract_amount: number;
+    total_paid: number;
+    deposit_paid: number;
+    deposit_target: number;
+    monthly_payment: number;
+    installment_period: number;
+    first_payment: number;
+    remaining_amount: number;
+  };
   stages: Stage[];
   employee: EmployeeInfo | null;
   employees?: EmployeeInfo[];
+  payments: Payment[];
 }
 
 export default function ClientCabinet() {
@@ -101,6 +126,15 @@ export default function ClientCabinet() {
     return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   };
 
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: 'RUB',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4">
       <div className="container mx-auto max-w-3xl space-y-6">
@@ -149,6 +183,93 @@ export default function ClientCabinet() {
                   </div>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Payment Progress */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Прогресс платежей</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PaymentProgress
+              totalPaid={data.client.total_paid || 0}
+              contractAmount={data.client.contract_amount || 0}
+              depositPaid={data.client.deposit_paid || 0}
+              depositTarget={data.client.deposit_target || 0}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Contract Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Детали договора</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Сумма договора</p>
+                <p className="font-semibold">{formatAmount(data.client.contract_amount)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Дата договора</p>
+                <p className="font-semibold">{new Date(data.client.contract_date).toLocaleDateString("ru-RU")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Период рассрочки</p>
+                <p className="font-semibold">{data.client.installment_period} мес.</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Ежемесячный платеж</p>
+                <p className="font-semibold">{formatAmount(data.client.monthly_payment)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Авансовый платеж</p>
+                <p className="font-semibold">{formatAmount(data.client.first_payment)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Остаток к оплате</p>
+                <p className="font-semibold text-primary">{formatAmount(data.client.remaining_amount)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Schedule */}
+        {data.payments && data.payments.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">График платежей</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>№</TableHead>
+                    <TableHead>Тип</TableHead>
+                    <TableHead>Дата</TableHead>
+                    <TableHead>Сумма</TableHead>
+                    <TableHead>Статус</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.payments.map((p) => (
+                    <TableRow key={p.payment_number}>
+                      <TableCell>{p.payment_number}</TableCell>
+                      <TableCell>{p.payment_type === 'advance' ? 'Авансовый' : 'Ежемесячный'}</TableCell>
+                      <TableCell>{new Date(p.due_date).toLocaleDateString("ru-RU")}</TableCell>
+                      <TableCell>{formatAmount(p.custom_amount ?? p.original_amount)}</TableCell>
+                      <TableCell>
+                        <Badge variant={p.is_completed ? "default" : "secondary"}>
+                          {p.is_completed ? "Оплачен" : "Ожидает"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         )}
