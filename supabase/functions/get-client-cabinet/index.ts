@@ -60,62 +60,46 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Get team employees from client_employees table
-    const { data: teamRows } = await supabase
+    // Get team members directly from client_employees
+    const { data: teamMembers } = await supabase
       .from('client_employees')
-      .select('employee_id, role_label')
+      .select('full_name, avatar_url, bio, role_label')
       .eq('client_id', client.id)
+      .order('created_at', { ascending: true })
 
-    // Collect all employee IDs (main + team)
-    const employeeIds = new Set<string>()
-    if (client.employee_id) employeeIds.add(client.employee_id)
-    if (teamRows) {
-      for (const row of teamRows) {
-        employeeIds.add(row.employee_id)
-      }
-    }
-
-    // Fetch profiles for all employees
-    const employees: Array<{ full_name: string | null; avatar_url: string | null; bio: string | null; role_label: string | null }> = []
-
-    if (employeeIds.size > 0) {
-      const { data: profiles } = await supabase
+    // Also get main employee from profiles for backward compat
+    let mainEmployee = null
+    if (client.employee_id) {
+      const { data: empData } = await supabase
         .from('profiles')
-        .select('user_id, full_name, avatar_url, bio')
-        .in('user_id', Array.from(employeeIds))
+        .select('full_name, avatar_url, bio')
+        .eq('user_id', client.employee_id)
+        .single()
 
-      const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || [])
-      const teamMap = new Map(teamRows?.map((r) => [r.employee_id, r.role_label]) || [])
-
-      // Add main employee first
-      if (client.employee_id && profileMap.has(client.employee_id)) {
-        const p = profileMap.get(client.employee_id)!
-        employees.push({
-          full_name: p.full_name,
-          avatar_url: p.avatar_url,
-          bio: p.bio,
-          role_label: teamMap.get(client.employee_id) || null,
-        })
-      }
-
-      // Add team members (skip main employee to avoid duplicates)
-      if (teamRows) {
-        for (const row of teamRows) {
-          if (row.employee_id === client.employee_id) continue
-          const p = profileMap.get(row.employee_id)
-          if (p) {
-            employees.push({
-              full_name: p.full_name,
-              avatar_url: p.avatar_url,
-              bio: p.bio,
-              role_label: row.role_label,
-            })
-          }
+      if (empData) {
+        mainEmployee = {
+          full_name: empData.full_name,
+          avatar_url: empData.avatar_url,
+          bio: empData.bio,
+          role_label: null,
         }
       }
     }
 
-    // backward compat: also return single employee
+    // Build employees array: main employee first, then team
+    const employees: Array<{ full_name: string | null; avatar_url: string | null; bio: string | null; role_label: string | null }> = []
+    if (mainEmployee) employees.push(mainEmployee)
+    if (teamMembers) {
+      for (const m of teamMembers) {
+        employees.push({
+          full_name: m.full_name,
+          avatar_url: m.avatar_url,
+          bio: m.bio,
+          role_label: m.role_label,
+        })
+      }
+    }
+
     const employee = employees.length > 0 ? employees[0] : null
 
     // Get stages

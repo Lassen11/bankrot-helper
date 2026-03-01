@@ -244,23 +244,29 @@ export type Database = {
       }
       client_employees: {
         Row: {
+          avatar_url: string | null
+          bio: string | null
           client_id: string
           created_at: string
-          employee_id: string
+          full_name: string
           id: string
           role_label: string | null
         }
         Insert: {
+          avatar_url?: string | null
+          bio?: string | null
           client_id: string
           created_at?: string
-          employee_id: string
+          full_name?: string
           id?: string
           role_label?: string | null
         }
         Update: {
+          avatar_url?: string | null
+          bio?: string | null
           client_id?: string
           created_at?: string
-          employee_id?: string
+          full_name?: string
           id?: string
           role_label?: string | null
         }
