@@ -170,6 +170,8 @@ export type Database = {
           file_name: string | null
           file_url: string | null
           id: string
+          is_read_by_client: boolean
+          is_read_by_employee: boolean
           message: string
           sender_id: string | null
           sender_type: string
@@ -180,6 +182,8 @@ export type Database = {
           file_name?: string | null
           file_url?: string | null
           id?: string
+          is_read_by_client?: boolean
+          is_read_by_employee?: boolean
           message?: string
           sender_id?: string | null
           sender_type?: string
@@ -190,6 +194,8 @@ export type Database = {
           file_name?: string | null
           file_url?: string | null
           id?: string
+          is_read_by_client?: boolean
+          is_read_by_employee?: boolean
           message?: string
           sender_id?: string | null
           sender_type?: string

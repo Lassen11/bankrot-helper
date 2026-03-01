@@ -52,18 +52,20 @@ export function ClientCabinetsManagement() {
         .select("client_id, is_completed")
         .in("client_id", clientIds);
 
-      // Get message counts
+      // Get unread client messages count
       const { data: messages } = await supabase
         .from("cabinet_messages")
-        .select("client_id, sender_type")
-        .in("client_id", clientIds);
+        .select("client_id")
+        .in("client_id", clientIds)
+        .eq("sender_type", "client")
+        .eq("is_read_by_employee", false);
 
       const clientMap = new Map(clients?.map((c) => [c.id, c.full_name]) || []);
 
       const cabinetList: CabinetInfo[] = tokens.map((t) => {
         const clientStages = stages?.filter((s) => s.client_id === t.client_id) || [];
         const clientMsgs = messages?.filter(
-          (m) => m.client_id === t.client_id && m.sender_type === "client"
+          (m) => m.client_id === t.client_id
         ) || [];
 
         return {

@@ -12,7 +12,8 @@ import { TerminatedClientsHistory } from "@/components/TerminatedClientsHistory"
 import { SuspendedClientsHistory } from "@/components/SuspendedClientsHistory";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, UserPlus, TrendingUp, Calendar, DollarSign } from "lucide-react";
+import { Users, UserPlus, TrendingUp, Calendar, DollarSign, MessageCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -32,12 +33,25 @@ const Index = () => {
     completedPaymentsSum: 0,
     loading: true
   });
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (user && !roleLoading) {
       fetchMetrics();
+      fetchUnreadCount();
+      const unreadInterval = setInterval(fetchUnreadCount, 15000);
+      return () => clearInterval(unreadInterval);
     }
   }, [user, refreshClients, roleLoading]);
+
+  const fetchUnreadCount = async () => {
+    const { count } = await supabase
+      .from("cabinet_messages")
+      .select("*", { count: "exact", head: true })
+      .eq("sender_type", "client")
+      .eq("is_read_by_employee", false);
+    setUnreadCount(count || 0);
+  };
 
   const fetchMetrics = async () => {
     if (!user) return;
@@ -330,7 +344,14 @@ const Index = () => {
               <TabsTrigger value="calendar">Календарь</TabsTrigger>
               <TabsTrigger value="bonus">Премия</TabsTrigger>
               <TabsTrigger value="agents">Агенты</TabsTrigger>
-              <TabsTrigger value="cabinets">Кабинеты</TabsTrigger>
+              <TabsTrigger value="cabinets" className="relative">
+                Кабинеты
+                {unreadCount > 0 && (
+                  <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px]">
+                    {unreadCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="terminated">Расторжения</TabsTrigger>
               <TabsTrigger value="suspended">Приостановки</TabsTrigger>
               <TabsTrigger value="add-client">Добавить</TabsTrigger>

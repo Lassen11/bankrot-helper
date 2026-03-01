@@ -51,7 +51,19 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
       .eq("client_id", clientId)
       .order("created_at", { ascending: true });
 
-    if (!error && data) setMessages(data as Message[]);
+    if (!error && data) {
+      setMessages(data as Message[]);
+      // Mark client messages as read by employee
+      const unreadIds = data
+        .filter((m: any) => m.sender_type === "client" && !m.is_read_by_employee)
+        .map((m: any) => m.id);
+      if (unreadIds.length > 0) {
+        await supabase
+          .from("cabinet_messages")
+          .update({ is_read_by_employee: true })
+          .in("id", unreadIds);
+      }
+    }
   };
 
   const sendMessage = async () => {
