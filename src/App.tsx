@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import PaymentHistory from "./pages/PaymentHistory";
 import AdminClients from "./pages/AdminClients";
 import NotFound from "./pages/NotFound";
+import ClientCabinet from "./pages/ClientCabinet";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -49,6 +50,7 @@ const App = () => (
                 <AdminClients />
               </ProtectedRoute>
             } />
+            <Route path="/cabinet/:token" element={<ClientCabinet />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
