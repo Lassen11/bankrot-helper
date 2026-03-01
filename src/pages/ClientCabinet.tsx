@@ -136,15 +136,15 @@ export default function ClientCabinet() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4">
-      <div className="container mx-auto max-w-3xl space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-2 sm:p-4">
+      <div className="container mx-auto max-w-3xl space-y-4 sm:space-y-6">
         {/* Header */}
         <Card>
           <CardHeader className="text-center pb-2">
             <p className="text-sm text-muted-foreground uppercase tracking-wider">
               Кабинет клиента
             </p>
-            <CardTitle className="text-2xl">{data.client.full_name}</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl">{data.client.full_name}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex justify-between text-sm">
@@ -167,8 +167,8 @@ export default function ClientCabinet() {
             </CardHeader>
             <CardContent className="space-y-3">
               {specialists.map((emp, idx) => (
-                <div key={idx} className="flex items-center gap-4 p-3 rounded-lg bg-muted/40">
-                  <Avatar className="h-14 w-14">
+                <div key={idx} className="flex items-center gap-3 sm:gap-4 p-3 rounded-lg bg-muted/40">
+                  <Avatar className="h-10 w-10 sm:h-14 sm:w-14">
                     {emp.avatar_url && <AvatarImage src={emp.avatar_url} alt={emp.full_name || ""} />}
                     <AvatarFallback>{getInitials(emp.full_name)}</AvatarFallback>
                   </Avatar>
@@ -218,7 +218,7 @@ export default function ClientCabinet() {
             <CardTitle className="text-lg">Детали договора</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Сумма договора</p>
                 <p className="font-semibold">{formatAmount(data.client.contract_amount)}</p>
@@ -254,32 +254,34 @@ export default function ClientCabinet() {
               <CardTitle className="text-lg">График платежей</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>№</TableHead>
-                    <TableHead>Тип</TableHead>
-                    <TableHead>Дата</TableHead>
-                    <TableHead>Сумма</TableHead>
-                    <TableHead>Статус</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.payments.map((p) => (
-                    <TableRow key={p.payment_number}>
-                      <TableCell>{p.payment_number}</TableCell>
-                      <TableCell>{p.payment_type === 'advance' ? 'Авансовый' : 'Ежемесячный'}</TableCell>
-                      <TableCell>{new Date(p.due_date).toLocaleDateString("ru-RU")}</TableCell>
-                      <TableCell>{formatAmount(p.custom_amount ?? p.original_amount)}</TableCell>
-                      <TableCell>
-                        <Badge variant={p.is_completed ? "default" : "secondary"}>
-                          {p.is_completed ? "Оплачен" : "Ожидает"}
-                        </Badge>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm">№</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Тип</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Дата</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Сумма</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Статус</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {data.payments.map((p) => (
+                      <TableRow key={p.payment_number}>
+                        <TableCell className="text-xs sm:text-sm">{p.payment_number}</TableCell>
+                        <TableCell className="text-xs sm:text-sm">{p.payment_type === 'advance' ? 'Аванс' : 'Ежемес.'}</TableCell>
+                        <TableCell className="text-xs sm:text-sm">{new Date(p.due_date).toLocaleDateString("ru-RU")}</TableCell>
+                        <TableCell className="text-xs sm:text-sm">{formatAmount(p.custom_amount ?? p.original_amount)}</TableCell>
+                        <TableCell>
+                          <Badge variant={p.is_completed ? "default" : "secondary"} className="text-xs">
+                            {p.is_completed ? "Оплачен" : "Ожидает"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         )}
