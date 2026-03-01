@@ -125,8 +125,9 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
 
       if (error) throw error;
       fetchMessages();
-    } catch {
-      toast.error("Ошибка загрузки файла");
+    } catch (err: any) {
+      console.error("File upload error:", err);
+      toast.error("Ошибка загрузки файла: " + (err?.message || err?.statusCode || "неизвестная ошибка"));
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
