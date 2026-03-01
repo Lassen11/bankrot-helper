@@ -1,0 +1,1 @@
+UPDATE payments SET user_id = 'e4130eb0-d043-4a5c-9603-b95fccbc0735' WHERE user_id = '3e33c35a-5473-4f01-8a3c-4a20e08d1fc7';
