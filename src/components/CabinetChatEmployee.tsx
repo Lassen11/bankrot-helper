@@ -186,16 +186,29 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
               </span>
               {msg.message && <p className="text-sm">{msg.message}</p>}
               {msg.file_url && (
-                <a
-                  href={msg.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs mt-1 underline"
-                >
-                  <FileText className="h-3 w-3" />
-                  {msg.file_name || "Файл"}
-                  <Download className="h-3 w-3" />
-                </a>
+                <div className="mt-1 space-y-1">
+                  <a
+                    href={msg.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs underline"
+                  >
+                    <FileText className="h-3 w-3" />
+                    {msg.file_name || "Файл"}
+                  </a>
+                  <a
+                    href={msg.file_url}
+                    download={msg.file_name || "file"}
+                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded ${
+                      msg.sender_type === "employee"
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-foreground/10 text-foreground"
+                    }`}
+                  >
+                    <Download className="h-3 w-3" />
+                    Скачать
+                  </a>
+                </div>
               )}
               <span className={`text-[10px] mt-1 block ${
                 msg.sender_type === "employee" ? "text-primary-foreground/70" : "text-muted-foreground"
