@@ -32,6 +32,46 @@ export function ClientCabinetsManagement() {
     if (user) fetchCabinets();
   }, [user]);
 
+  // Real-time notifications for new client messages
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('cabinet-messages-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'cabinet_messages',
+          filter: 'sender_type=eq.client',
+        },
+        (payload) => {
+          const newMsg = payload.new as any;
+          const cab = cabinets.find((c) => c.client_id === newMsg.client_id);
+          if (cab) {
+            toast.info(`Новое сообщение от клиента ${cab.client_name}`, {
+              description: newMsg.message || "Файл",
+              duration: 8000,
+            });
+            // Update unread count
+            setCabinets((prev) =>
+              prev.map((c) =>
+                c.client_id === newMsg.client_id
+                  ? { ...c, unread_messages: c.unread_messages + 1 }
+                  : c
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, cabinets]);
+
   const fetchCabinets = async () => {
     try {
       const { data: tokens, error: tokensError } = await supabase
