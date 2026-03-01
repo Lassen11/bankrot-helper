@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BankruptcyTimeline } from "@/components/BankruptcyTimeline";
+import { CabinetChatClient } from "@/components/CabinetChatClient";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Stage {
@@ -108,6 +109,16 @@ export default function ClientCabinet() {
           </CardHeader>
           <CardContent>
             <BankruptcyTimeline stages={data.stages} />
+          </CardContent>
+        </Card>
+
+        {/* Chat */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Чат со специалистом</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <CabinetChatClient token={token!} />
           </CardContent>
         </Card>
 

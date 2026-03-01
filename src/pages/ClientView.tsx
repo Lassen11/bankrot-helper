@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { GenerateCabinetLink } from "@/components/GenerateCabinetLink";
 import { BankruptcyStages } from "@/components/BankruptcyStages";
+import { CabinetChatEmployee } from "@/components/CabinetChatEmployee";
 interface Client {
   id: string;
   full_name: string;
@@ -254,6 +255,16 @@ export default function ClientView() {
           <GenerateCabinetLink clientId={client.id} />
           <BankruptcyStages clientId={client.id} />
         </div>
+
+        {/* Chat with Client */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Чат с клиентом</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <CabinetChatEmployee clientId={client.id} />
+          </CardContent>
+        </Card>
       </div>
     </div>;
 }
