@@ -103,7 +103,10 @@ export function CabinetChatEmployee({ clientId }: CabinetChatEmployeeProps) {
     if (!file || !user) return;
 
     try {
-      const filePath = `${clientId}/${Date.now()}_${file.name}`;
+      const safeFileName = file.name
+        .normalize("NFKD")
+        .replace(/[^a-zA-Z0-9._-]/g, "_");
+      const filePath = `${clientId}/${Date.now()}_${safeFileName}`;
       const { error: uploadError } = await supabase.storage
         .from("cabinet-files")
         .upload(filePath, file);
