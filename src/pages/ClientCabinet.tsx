@@ -187,6 +187,16 @@ export default function ClientCabinet() {
           </Card>
         )}
 
+        {/* Timeline */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Этапы процедуры банкротства</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BankruptcyTimeline stages={data.stages} />
+          </CardContent>
+        </Card>
+
         {/* Payment Progress */}
         <Card>
           <CardHeader>
@@ -273,16 +283,6 @@ export default function ClientCabinet() {
             </CardContent>
           </Card>
         )}
-
-        {/* Timeline */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Этапы процедуры банкротства</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BankruptcyTimeline stages={data.stages} />
-          </CardContent>
-        </Card>
 
         {/* Chat */}
         <Card>
