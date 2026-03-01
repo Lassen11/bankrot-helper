@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     // Get client info
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('id, full_name, contract_date, employee_id')
+      .select('id, full_name, contract_date, employee_id, contract_amount, total_paid, deposit_paid, deposit_target, monthly_payment, installment_period, first_payment, remaining_amount')
       .eq('id', tokenData.client_id)
       .single()
 
@@ -116,12 +116,32 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Get payments
+    const { data: payments } = await supabase
+      .from('payments')
+      .select('payment_number, original_amount, custom_amount, due_date, is_completed, payment_type, completed_at')
+      .eq('client_id', tokenData.client_id)
+      .order('payment_number', { ascending: true })
+
     return new Response(
       JSON.stringify({
-        client: { id: client.id, full_name: client.full_name, contract_date: client.contract_date },
+        client: {
+          id: client.id,
+          full_name: client.full_name,
+          contract_date: client.contract_date,
+          contract_amount: client.contract_amount,
+          total_paid: client.total_paid,
+          deposit_paid: client.deposit_paid,
+          deposit_target: client.deposit_target,
+          monthly_payment: client.monthly_payment,
+          installment_period: client.installment_period,
+          first_payment: client.first_payment,
+          remaining_amount: client.remaining_amount,
+        },
         stages,
         employee,
         employees,
+        payments: payments || [],
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
