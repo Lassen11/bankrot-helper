@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Copy, ExternalLink, Link2, RefreshCw, Ban } from "lucide-react";
@@ -166,15 +167,26 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
                 {loading ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
                 Новая ссылка
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={deactivateLink}
-                disabled={deactivating}
-              >
-                {deactivating ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <Ban className="h-3 w-3 mr-1" />}
-                Деактивировать
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={deactivating}>
+                    {deactivating ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <Ban className="h-3 w-3 mr-1" />}
+                    Деактивировать
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Деактивировать ссылку?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Клиент больше не сможет перейти по текущей ссылке. Вы сможете сгенерировать новую ссылку.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={deactivateLink}>Деактивировать</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         ) : (
