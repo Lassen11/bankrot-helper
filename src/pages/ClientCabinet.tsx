@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BankruptcyTimeline } from "@/components/BankruptcyTimeline";
 import { CabinetChatClient } from "@/components/CabinetChatClient";
+import { ArrowUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PaymentProgress } from "@/components/PaymentProgress";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +63,17 @@ export default function ClientCabinet() {
   const [data, setData] = useState<CabinetData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
   useEffect(() => {
     if (token) fetchCabinet();
   }, [token]);
@@ -301,6 +313,16 @@ export default function ClientCabinet() {
           {new Date(data.client.contract_date).toLocaleDateString("ru-RU")}
         </p>
       </div>
+
+      {showScrollTop && (
+        <Button
+          onClick={scrollToTop}
+          size="icon"
+          className="fixed bottom-6 right-6 z-50 rounded-full shadow-lg h-10 w-10 sm:hidden"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+      )}
     </div>
   );
 }
