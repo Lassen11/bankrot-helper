@@ -1,4 +1,5 @@
 import { Check, Circle, Clock } from "lucide-react";
+import React from "react";
 
 interface Stage {
   id: string;
@@ -7,6 +8,30 @@ interface Stage {
   description: string;
   is_completed: boolean;
   completed_at: string | null;
+}
+
+function Linkify({ children }: { children: string }) {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  const parts = children.split(urlRegex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline underline-offset-2 hover:text-primary/80 break-all"
+          >
+            {part}
+          </a>
+        ) : (
+          <React.Fragment key={i}>{part}</React.Fragment>
+        )
+      )}
+    </>
+  );
 }
 
 interface BankruptcyTimelineProps {
@@ -75,7 +100,7 @@ export function BankruptcyTimeline({ stages }: BankruptcyTimelineProps) {
               </h3>
               {stage.description && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  {stage.description}
+                  <Linkify>{stage.description}</Linkify>
                 </p>
               )}
             </div>
