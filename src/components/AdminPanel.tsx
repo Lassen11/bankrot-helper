@@ -211,7 +211,7 @@ export const AdminPanel = () => {
 
       // Фильтруем по сотруднику если выбран
       if (selectedEmployee !== 'all') {
-        allClientsQuery = allClientsQuery.eq('user_id', selectedEmployee);
+        allClientsQuery = allClientsQuery.eq('employee_id', selectedEmployee);
       }
 
       const { data: allClients, error: clientsError } = await allClientsQuery;
@@ -273,7 +273,7 @@ export const AdminPanel = () => {
         .lte('created_at', endDateStr + 'T23:59:59.999Z');
 
       if (selectedEmployee !== 'all') {
-        newClientsQuery = newClientsQuery.eq('user_id', selectedEmployee);
+        newClientsQuery = newClientsQuery.eq('employee_id', selectedEmployee);
       }
 
       const { data: newClients } = await newClientsQuery;
@@ -290,7 +290,7 @@ export const AdminPanel = () => {
         .lte('completed_at', endDateStr + 'T23:59:59.999Z');
 
       if (selectedEmployee !== 'all') {
-        completedClientsQuery = completedClientsQuery.eq('user_id', selectedEmployee);
+        completedClientsQuery = completedClientsQuery.eq('employee_id', selectedEmployee);
       }
 
       const { data: completedClients } = await completedClientsQuery;
@@ -370,7 +370,7 @@ export const AdminPanel = () => {
         .lt('terminated_at', nextMonthStartIso);
 
       if (selectedEmployee !== 'all') {
-        terminatedQuery = terminatedQuery.eq('user_id', selectedEmployee);
+        terminatedQuery = terminatedQuery.eq('employee_id', selectedEmployee);
       }
 
       const { data: terminatedClients } = await terminatedQuery;
@@ -387,7 +387,7 @@ export const AdminPanel = () => {
         .lt('suspended_at', nextMonthStartIso);
 
       if (selectedEmployee !== 'all') {
-        suspendedQuery = suspendedQuery.eq('user_id', selectedEmployee);
+        suspendedQuery = suspendedQuery.eq('employee_id', selectedEmployee);
       }
 
       const { data: suspendedClients } = await suspendedQuery;
