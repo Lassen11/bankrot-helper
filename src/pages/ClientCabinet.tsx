@@ -184,18 +184,27 @@ export default function ClientCabinet() {
             </CardHeader>
             <CardContent className="space-y-3">
               {specialists.map((emp, idx) => (
-                <div key={idx} className="flex items-center gap-3 sm:gap-4 p-3 rounded-lg bg-muted/40">
-                  <Avatar className="h-10 w-10 sm:h-14 sm:w-14">
-                    {emp.avatar_url && <AvatarImage src={emp.avatar_url} alt={emp.full_name || ""} />}
-                    <AvatarFallback>{getInitials(emp.full_name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold">{emp.full_name || "Специалист"}</p>
+                <div key={idx} className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-lg bg-muted/40">
+                  <div className="w-full sm:w-40 shrink-0">
+                    {emp.avatar_url ? (
+                      <img
+                        src={emp.avatar_url}
+                        alt={emp.full_name || ""}
+                        className="w-full aspect-[9/16] object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[9/16] rounded-lg bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground">
+                        {getInitials(emp.full_name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 text-center sm:text-left">
+                    <p className="font-semibold text-lg">{emp.full_name || "Специалист"}</p>
                     {emp.role_label && (
                       <Badge variant="secondary" className="text-xs mb-1">{emp.role_label}</Badge>
                     )}
                     {emp.bio && (
-                      <p className="text-sm text-muted-foreground">{emp.bio}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{emp.bio}</p>
                     )}
                   </div>
                 </div>
