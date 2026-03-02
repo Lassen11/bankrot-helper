@@ -63,6 +63,10 @@ export function ClientTeamManagement({ clientId }: { clientId: string }) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Максимальный размер 10 МБ");
+      return;
+    }
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
   };
@@ -70,6 +74,10 @@ export function ClientTeamManagement({ clientId }: { clientId: string }) {
   const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Максимальный размер 10 МБ");
+      return;
+    }
     setEditAvatarFile(file);
     setEditAvatarPreview(URL.createObjectURL(file));
   };
