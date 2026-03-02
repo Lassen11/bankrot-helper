@@ -44,8 +44,8 @@ export function EmployeeProfileEditor() {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Максимальный размер 2 МБ");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Максимальный размер 10 МБ");
       return;
     }
 
