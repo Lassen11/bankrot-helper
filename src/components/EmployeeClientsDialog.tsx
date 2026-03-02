@@ -129,24 +129,27 @@ export const EmployeeClientsDialog = ({
 
   const handleDeleteClient = async (client: Client) => {
     try {
-      // Soft delete — помечаем клиента как расторгнутого вместо полного удаления
+      // Удаляем связанные данные, затем самого клиента
+      await supabase.from('payments').delete().eq('client_id', client.id);
+      await supabase.from('bankruptcy_stages').delete().eq('client_id', client.id);
+      await supabase.from('cabinet_messages').delete().eq('client_id', client.id);
+      await supabase.from('client_cabinet_tokens').delete().eq('client_id', client.id);
+      await supabase.from('client_employees').delete().eq('client_id', client.id);
+      await supabase.from('payment_receipts').delete().eq('client_id', client.id);
+      await supabase.from('payment_history').delete().eq('client_id', client.id);
+
       const { error } = await supabase
         .from('clients')
-        .update({
-          is_terminated: true,
-          terminated_at: new Date().toISOString(),
-          termination_reason: 'Удалён из системы',
-        })
+        .delete()
         .eq('id', client.id);
 
       if (error) throw error;
 
       toast({
         title: "Успешно",
-        description: `Клиент ${client.full_name} перемещён в архив (расторгнутые)`,
+        description: `Клиент ${client.full_name} полностью удалён из системы`,
       });
 
-      // Обновляем список клиентов
       setClients(clients.filter(c => c.id !== client.id));
       onClientDeleted?.();
     } catch (error) {
