@@ -1,40 +1,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, ExternalLink, Link2, RefreshCw, Ban } from "lucide-react";
-
-const DEFAULT_STAGES = [
-  { number: 1, title: "Сбор документов и изучение материала", description: "Сбор и подготовка первичных документов для процедуры списания долгов\nВам необходимо детально изучить памятку что можно, а что нельзя делать при прохождении процедуры списания долгов для этого нажмите на ссылку\nhttps://pamyatka-bfl.delobusiness-it.ru/" },
-  { number: 2, title: "Анализ финансового состояния", description: "Анализ доходов, расходов и долговой нагрузки и всей кредитной истории.\nСоздаем документ для отзыва ваших персональных данных от кредиторов" },
-  { number: 3, title: "Сбор второго пакета документов", description: "Формируем ЛКН\nЗапросы в ФНС, ГиБДД, Росреестр.\nЮридический отдел анализирует всю документацию, при наличии дополнительного имущества защищаем его" },
-  { number: 4, title: "Первичная работа с кредиторами", description: "Официально уведомляем ваших кредиторов о прохождении процедуры списания всех долгов\nСобираем необходимый пакет документов по вашему супругу/супруге для защиты имущества" },
-  { number: 5, title: "Подготовка заявления в суд", description: "Составление заявления о признании банкротом" },
-  { number: 6, title: "Подача заявления в Арбитражный суд", description: "Рассмотрение дела о банкротстве в суде" },
-  { number: 7, title: "Первое судебное заседание", description: "Рассмотрение дела о банкротстве в суде\nНазначение финансового управляющего" },
-  { number: 8, title: "Работа с государственными органами", description: "Отправка запросов, Получение ответов и работа с ними" },
-  { number: 9, title: "Работа с кредиторами", description: "Взаимодействие с кредиторами и рассмотрение их требований\nФормирование и утверждение реестра требований кредиторов" },
-  { number: 10, title: "Промежуточный отчет Арбитражного управляющего", description: "Направляем отчет от нашего Арбитражного управляющего, о успешном прохождении процедуры списания долгов" },
-  { number: 11, title: "Завершение процедуры реализации", description: "Подготовка отчёта и завершение процедуры реализации" },
-  { number: 12, title: "Списание долгов и закрытие дела", description: "Суд выносит определение о списании долгов" },
-];
-
-const DEFAULT_TEAM = [
-  {
-    full_name: "Гоннова Анастасия Сергеевна",
-    role_label: "Квалифицированный юрист в банкротстве физических лиц",
-    bio: "Защищает интересы клиента в ходе всей процедуры",
-    avatar_url: "https://gidvpxxfgvivjbzfpxcg.supabase.co/storage/v1/object/public/avatars/team/622ec1a7-e3ba-4088-9c47-fae168d86421/ff73edb2-37bf-4d7b-8d80-2943cd15c686.jpg",
-  },
-  {
-    full_name: "Эркенова Марианна Казимовна",
-    role_label: "Арбитражный Управляющий",
-    bio: "Ведет ваше дело в арбитражном суде",
-    avatar_url: "https://gidvpxxfgvivjbzfpxcg.supabase.co/storage/v1/object/public/avatars/team/622ec1a7-e3ba-4088-9c47-fae168d86421/2ec5d944-0776-4b28-a17a-9a528af703e5.jpg",
-  },
-];
+import { Copy, Link2, RefreshCw } from "lucide-react";
 
 interface GenerateCabinetLinkProps {
   clientId: string;
@@ -43,7 +12,6 @@ interface GenerateCabinetLinkProps {
 export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [deactivating, setDeactivating] = useState(false);
   const [checking, setChecking] = useState(true);
   const [hasStages, setHasStages] = useState(false);
   const [hasTeam, setHasTeam] = useState(false);
@@ -93,11 +61,17 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
 
       if (tokenError) throw tokenError;
 
-      // Create default stages only if none exist
-      if (!hasStages) {
-        const stages = DEFAULT_STAGES.map((s) => ({
+      // Fetch templates from DB
+      const [templateStagesRes, templateTeamRes] = await Promise.all([
+        supabase.from("cabinet_template_stages").select("stage_number, title, description").order("stage_number"),
+        supabase.from("cabinet_template_team").select("full_name, role_label, bio, avatar_url").order("sort_order"),
+      ]);
+
+      // Create stages from template if none exist
+      if (!hasStages && templateStagesRes.data && templateStagesRes.data.length > 0) {
+        const stages = templateStagesRes.data.map((s) => ({
           client_id: clientId,
-          stage_number: s.number,
+          stage_number: s.stage_number,
           title: s.title,
           description: s.description,
         }));
@@ -110,9 +84,9 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
         setHasStages(true);
       }
 
-      // Create default team only if none exist
-      if (!hasTeam) {
-        const team = DEFAULT_TEAM.map((t) => ({
+      // Create team from template if none exist
+      if (!hasTeam && templateTeamRes.data && templateTeamRes.data.length > 0) {
+        const team = templateTeamRes.data.map((t) => ({
           client_id: clientId,
           full_name: t.full_name,
           role_label: t.role_label,
@@ -134,26 +108,6 @@ export function GenerateCabinetLink({ clientId }: GenerateCabinetLinkProps) {
       toast.error("Ошибка: " + (error.message || "Не удалось создать кабинет"));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const deactivateLink = async () => {
-    setDeactivating(true);
-    try {
-      const { error } = await supabase
-        .from("client_cabinet_tokens")
-        .update({ is_active: false })
-        .eq("client_id", clientId)
-        .eq("token", token);
-
-      if (error) throw error;
-
-      setToken(null);
-      toast.success("Ссылка деактивирована");
-    } catch (error: any) {
-      toast.error("Ошибка: " + (error.message || "Не удалось деактивировать"));
-    } finally {
-      setDeactivating(false);
     }
   };
 
