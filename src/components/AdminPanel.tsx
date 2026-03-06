@@ -16,6 +16,7 @@ import { PaymentsCalendar } from "./PaymentsCalendar";
 import { AgentsManagement } from "./AgentsManagement";
 import { ClientCabinetsManagement } from "./ClientCabinetsManagement";
 import { AdminBonusManagement } from "./AdminBonusManagement";
+import { CabinetTemplateEditor } from "./CabinetTemplateEditor";
 import { TerminatedClientsHistory } from "./TerminatedClientsHistory";
 import { SuspendedClientsHistory } from "./SuspendedClientsHistory";
 import { AllPaymentsDialog } from "./AllPaymentsDialog";
@@ -1236,6 +1237,10 @@ export const AdminPanel = () => {
 
         <TabsContent value="import-export" className="space-y-6">
           <ImportExportPanel />
+        </TabsContent>
+
+        <TabsContent value="template" className="space-y-6">
+          <CabinetTemplateEditor />
         </TabsContent>
 
         <TabsContent value="management" className="space-y-6">
