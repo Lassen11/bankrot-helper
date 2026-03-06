@@ -130,6 +130,7 @@ export const EmployeeClientsDialog = ({
   const handleDeleteClient = async (client: Client) => {
     try {
       // Удаляем связанные данные, затем самого клиента
+      await supabase.from('bankruptcy_stage_files').delete().eq('client_id', client.id);
       await supabase.from('payments').delete().eq('client_id', client.id);
       await supabase.from('bankruptcy_stages').delete().eq('client_id', client.id);
       await supabase.from('cabinet_messages').delete().eq('client_id', client.id);
