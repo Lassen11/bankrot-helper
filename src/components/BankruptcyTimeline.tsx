@@ -1,5 +1,13 @@
-import { Check, Circle, Clock } from "lucide-react";
+import { Check, Circle, Clock, Download, FileIcon } from "lucide-react";
 import React from "react";
+import { Button } from "@/components/ui/button";
+
+interface StageFile {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_size: number;
+}
 
 interface Stage {
   id: string;
@@ -8,6 +16,7 @@ interface Stage {
   description: string;
   is_completed: boolean;
   completed_at: string | null;
+  files?: StageFile[];
 }
 
 function Linkify({ children }: { children: string }) {
@@ -34,12 +43,17 @@ function Linkify({ children }: { children: string }) {
   );
 }
 
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+}
+
 interface BankruptcyTimelineProps {
   stages: Stage[];
 }
 
 export function BankruptcyTimeline({ stages }: BankruptcyTimelineProps) {
-  // Find the first incomplete stage as "current"
   const currentStageIndex = stages.findIndex((s) => !s.is_completed);
 
   return (
@@ -80,7 +94,7 @@ export function BankruptcyTimeline({ stages }: BankruptcyTimelineProps) {
             </div>
 
             {/* Content */}
-            <div className={`pb-6 pt-1 ${isFuture ? "opacity-50" : ""}`}>
+            <div className={`pb-6 pt-1 flex-1 min-w-0 ${isFuture ? "opacity-50" : ""}`}>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">
                   Этап {stage.stage_number}
@@ -102,6 +116,28 @@ export function BankruptcyTimeline({ stages }: BankruptcyTimelineProps) {
                 <p className="text-sm text-muted-foreground mt-1">
                   <Linkify>{stage.description}</Linkify>
                 </p>
+              )}
+
+              {/* Stage files for client download */}
+              {stage.files && stage.files.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {stage.files.map((file) => (
+                    <a
+                      key={file.id}
+                      href={file.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1.5 hover:bg-muted transition-colors"
+                    >
+                      <FileIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      <span className="truncate flex-1 text-foreground">{file.file_name}</span>
+                      <span className="text-muted-foreground shrink-0">
+                        {formatFileSize(file.file_size)}
+                      </span>
+                      <Download className="h-3 w-3 shrink-0 text-primary" />
+                    </a>
+                  ))}
+                </div>
               )}
             </div>
           </div>
