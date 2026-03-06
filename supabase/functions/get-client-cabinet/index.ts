@@ -116,6 +116,33 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Get stage files
+    const { data: stageFiles } = await supabase
+      .from('bankruptcy_stage_files')
+      .select('id, stage_id, file_name, file_path, file_size')
+      .eq('client_id', tokenData.client_id)
+      .order('created_at', { ascending: true })
+
+    // Build public URLs and attach files to stages
+    const filesByStage: Record<string, Array<{ id: string; file_name: string; file_url: string; file_size: number }>> = {}
+    if (stageFiles) {
+      for (const f of stageFiles) {
+        const { data: urlData } = supabase.storage.from('cabinet-files').getPublicUrl(f.file_path)
+        if (!filesByStage[f.stage_id]) filesByStage[f.stage_id] = []
+        filesByStage[f.stage_id].push({
+          id: f.id,
+          file_name: f.file_name,
+          file_url: urlData.publicUrl,
+          file_size: f.file_size,
+        })
+      }
+    }
+
+    const stagesWithFiles = (stages || []).map((s: any) => ({
+      ...s,
+      files: filesByStage[s.id] || [],
+    }))
+
     // Get payments
     const { data: payments } = await supabase
       .from('payments')
@@ -138,7 +165,7 @@ Deno.serve(async (req) => {
           first_payment: client.first_payment,
           remaining_amount: client.remaining_amount,
         },
-        stages,
+        stages: stagesWithFiles,
         employee,
         employees,
         payments: payments || [],
