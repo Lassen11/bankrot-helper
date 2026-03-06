@@ -719,12 +719,13 @@ export const AdminPanel = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-10">
+        <TabsList className="grid w-full grid-cols-11">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="employees">Сотрудники</TabsTrigger>
           <TabsTrigger value="bonuses">Премии</TabsTrigger>
           <TabsTrigger value="agents">Агенты</TabsTrigger>
           <TabsTrigger value="cabinets">Кабинеты</TabsTrigger>
+          <TabsTrigger value="template">Шаблон</TabsTrigger>
           <TabsTrigger value="terminated">Расторжения</TabsTrigger>
           <TabsTrigger value="suspended">Приостановки</TabsTrigger>
           <TabsTrigger value="clients">Добавить клиента</TabsTrigger>
