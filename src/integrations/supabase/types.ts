@@ -261,6 +261,66 @@ export type Database = {
           },
         ]
       }
+      cabinet_template_stages: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          stage_number: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          stage_number: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          stage_number?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cabinet_template_team: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          full_name: string
+          id: string
+          role_label: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          role_label?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          role_label?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_cabinet_tokens: {
         Row: {
           client_id: string

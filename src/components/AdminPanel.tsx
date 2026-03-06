@@ -16,6 +16,7 @@ import { PaymentsCalendar } from "./PaymentsCalendar";
 import { AgentsManagement } from "./AgentsManagement";
 import { ClientCabinetsManagement } from "./ClientCabinetsManagement";
 import { AdminBonusManagement } from "./AdminBonusManagement";
+import { CabinetTemplateEditor } from "./CabinetTemplateEditor";
 import { TerminatedClientsHistory } from "./TerminatedClientsHistory";
 import { SuspendedClientsHistory } from "./SuspendedClientsHistory";
 import { AllPaymentsDialog } from "./AllPaymentsDialog";
@@ -719,12 +720,13 @@ export const AdminPanel = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-10">
+        <TabsList className="grid w-full grid-cols-11">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="employees">Сотрудники</TabsTrigger>
           <TabsTrigger value="bonuses">Премии</TabsTrigger>
           <TabsTrigger value="agents">Агенты</TabsTrigger>
           <TabsTrigger value="cabinets">Кабинеты</TabsTrigger>
+          <TabsTrigger value="template">Шаблон</TabsTrigger>
           <TabsTrigger value="terminated">Расторжения</TabsTrigger>
           <TabsTrigger value="suspended">Приостановки</TabsTrigger>
           <TabsTrigger value="clients">Добавить клиента</TabsTrigger>
@@ -1235,6 +1237,10 @@ export const AdminPanel = () => {
 
         <TabsContent value="import-export" className="space-y-6">
           <ImportExportPanel />
+        </TabsContent>
+
+        <TabsContent value="template" className="space-y-6">
+          <CabinetTemplateEditor />
         </TabsContent>
 
         <TabsContent value="management" className="space-y-6">
