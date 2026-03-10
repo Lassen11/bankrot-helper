@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, Edit2, Save, X, Upload, FileIcon, Trash2, Download } from "lucide-react";
+import { Edit2, Save, X, Upload, FileIcon, Trash2, Download, Plus, ArrowUp, ArrowDown } from "lucide-react";
 
 interface StageFile {
   id: string;
@@ -39,6 +39,9 @@ export function BankruptcyStages({ clientId }: BankruptcyStagesProps) {
   const [editDescription, setEditDescription] = useState("");
   const [stageFiles, setStageFiles] = useState<Record<string, StageFile[]>>({});
   const [uploadingStageId, setUploadingStageId] = useState<string | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
 
   useEffect(() => {
     fetchStages();
@@ -124,6 +127,92 @@ export function BankruptcyStages({ clientId }: BankruptcyStagesProps) {
     );
     setEditingId(null);
     toast.success("Этап обновлён");
+  };
+
+  const addNewStage = async () => {
+    if (!newTitle.trim()) {
+      toast.error("Введите название этапа");
+      return;
+    }
+
+    const nextNumber = stages.length > 0 ? Math.max(...stages.map((s) => s.stage_number)) + 1 : 1;
+
+    const { data, error } = await supabase
+      .from("bankruptcy_stages")
+      .insert({
+        client_id: clientId,
+        stage_number: nextNumber,
+        title: newTitle.trim(),
+        description: newDescription.trim(),
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      toast.error("Ошибка при добавлении этапа");
+      return;
+    }
+
+    setStages((prev) => [...prev, data]);
+    setNewTitle("");
+    setNewDescription("");
+    setAddingNew(false);
+    toast.success("Этап добавлен");
+  };
+
+  const deleteStage = async (stage: Stage) => {
+    // Delete files first
+    const files = stageFiles[stage.id] || [];
+    if (files.length > 0) {
+      await supabase.storage.from("cabinet-files").remove(files.map((f) => f.file_path));
+      await supabase.from("bankruptcy_stage_files").delete().eq("stage_id", stage.id);
+    }
+
+    const { error } = await supabase.from("bankruptcy_stages").delete().eq("id", stage.id);
+    if (error) {
+      toast.error("Ошибка при удалении этапа");
+      return;
+    }
+
+    const remaining = stages.filter((s) => s.id !== stage.id);
+    // Renumber
+    const updates = remaining.map((s, i) => ({ id: s.id, stage_number: i + 1 }));
+    for (const u of updates) {
+      await supabase.from("bankruptcy_stages").update({ stage_number: u.stage_number }).eq("id", u.id);
+    }
+
+    setStages(remaining.map((s, i) => ({ ...s, stage_number: i + 1 })));
+    setStageFiles((prev) => {
+      const next = { ...prev };
+      delete next[stage.id];
+      return next;
+    });
+    toast.success("Этап удалён");
+  };
+
+  const moveStage = async (index: number, direction: "up" | "down") => {
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= stages.length) return;
+
+    const updated = [...stages];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+
+    // Update stage_numbers
+    const withNumbers = updated.map((s, i) => ({ ...s, stage_number: i + 1 }));
+    setStages(withNumbers);
+
+    // Persist both swapped stages
+    const a = withNumbers[index];
+    const b = withNumbers[newIndex];
+    const [resA, resB] = await Promise.all([
+      supabase.from("bankruptcy_stages").update({ stage_number: a.stage_number }).eq("id", a.id),
+      supabase.from("bankruptcy_stages").update({ stage_number: b.stage_number }).eq("id", b.id),
+    ]);
+
+    if (resA.error || resB.error) {
+      toast.error("Ошибка при перемещении");
+      fetchStages();
+    }
   };
 
   const handleFileUpload = async (stageId: string, file: File) => {
@@ -212,7 +301,6 @@ export function BankruptcyStages({ clientId }: BankruptcyStagesProps) {
   };
 
   if (loading) return null;
-  if (stages.length === 0) return null;
 
   const completedCount = stages.filter((s) => s.is_completed).length;
 
@@ -221,14 +309,19 @@ export function BankruptcyStages({ clientId }: BankruptcyStagesProps) {
       <CardHeader>
         <CardTitle className="text-lg flex items-center justify-between">
           <span>Этапы банкротства</span>
-          <span className="text-sm font-normal text-muted-foreground">
-            {completedCount} / {stages.length} выполнено
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-normal text-muted-foreground">
+              {completedCount} / {stages.length} выполнено
+            </span>
+            <Button size="sm" variant="outline" onClick={() => setAddingNew(true)}>
+              <Plus className="h-3 w-3 mr-1" /> Добавить
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {stages.map((stage) => {
+          {stages.map((stage, index) => {
             const files = stageFiles[stage.id] || [];
             return (
               <div
@@ -354,18 +447,78 @@ export function BankruptcyStages({ clientId }: BankruptcyStagesProps) {
                 </div>
 
                 {editingId !== stage.id && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={() => startEdit(stage)}
-                  >
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={index === 0}
+                      onClick={() => moveStage(index, "up")}
+                    >
+                      <ArrowUp className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={index === stages.length - 1}
+                      onClick={() => moveStage(index, "down")}
+                    >
+                      <ArrowDown className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => startEdit(stage)}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => deleteStage(stage)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 )}
               </div>
             );
           })}
+
+          {/* Add new stage form */}
+          {addingNew && (
+            <div className="p-3 rounded-lg border border-dashed border-primary/50 space-y-2">
+              <Input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Название нового этапа"
+                autoFocus
+              />
+              <Textarea
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Описание (необязательно)"
+                rows={2}
+              />
+              <div className="flex gap-2">
+                <Button size="sm" onClick={addNewStage}>
+                  <Plus className="h-3 w-3 mr-1" /> Добавить
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewTitle(""); setNewDescription(""); }}>
+                  <X className="h-3 w-3 mr-1" /> Отмена
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {stages.length === 0 && !addingNew && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Нет этапов. Нажмите «Добавить» чтобы создать первый этап.
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
