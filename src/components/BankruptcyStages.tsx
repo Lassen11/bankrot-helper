@@ -194,22 +194,27 @@ export function BankruptcyStages({ clientId }: BankruptcyStagesProps) {
     const newIndex = direction === "up" ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= stages.length) return;
 
+    const stageA = stages[index];
+    const stageB = stages[newIndex];
+
+    // Optimistic update
     const updated = [...stages];
     [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
-
-    // Update stage_numbers
     const withNumbers = updated.map((s, i) => ({ ...s, stage_number: i + 1 }));
     setStages(withNumbers);
 
-    // Persist both swapped stages
-    const a = withNumbers[index];
-    const b = withNumbers[newIndex];
-    const [resA, resB] = await Promise.all([
-      supabase.from("bankruptcy_stages").update({ stage_number: a.stage_number }).eq("id", a.id),
-      supabase.from("bankruptcy_stages").update({ stage_number: b.stage_number }).eq("id", b.id),
-    ]);
+    try {
+      // Use temp value to avoid unique constraint conflict
+      const tempNumber = -1;
+      const res1 = await supabase.from("bankruptcy_stages").update({ stage_number: tempNumber }).eq("id", stageA.id);
+      if (res1.error) throw res1.error;
 
-    if (resA.error || resB.error) {
+      const res2 = await supabase.from("bankruptcy_stages").update({ stage_number: stageA.stage_number }).eq("id", stageB.id);
+      if (res2.error) throw res2.error;
+
+      const res3 = await supabase.from("bankruptcy_stages").update({ stage_number: stageB.stage_number }).eq("id", stageA.id);
+      if (res3.error) throw res3.error;
+    } catch {
       toast.error("Ошибка при перемещении");
       fetchStages();
     }
