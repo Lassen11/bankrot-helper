@@ -583,11 +583,18 @@ export const PaymentSchedule = ({
         
         const paymentDate = buildMonthlyDueDate(today, monthOffset);
 
+        // Последний платёж корректируем, чтобы сумма точно равнялась остатку
+        const isLastPayment = i === remainingPaymentsCount - 1;
+        const alreadyAllocated = monthlyPayment * i;
+        const paymentAmount = isLastPayment 
+          ? Math.round((remainingAmount - alreadyAllocated) * 100) / 100
+          : monthlyPayment;
+
         paymentsToCreate.push({
           client_id: clientId,
           user_id: employeeId,
           payment_number: maxPaymentNumber + i + 1,
-          original_amount: monthlyPayment,
+          original_amount: paymentAmount,
           due_date: format(paymentDate, 'yyyy-MM-dd'),
           payment_type: 'monthly'
         });
