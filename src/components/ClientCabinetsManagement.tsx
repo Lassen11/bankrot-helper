@@ -171,6 +171,12 @@ export function ClientCabinetsManagement() {
     }
   };
 
+  const filteredCabinets = useMemo(() => {
+    if (!searchQuery.trim()) return cabinets;
+    const q = searchQuery.toLowerCase().trim();
+    return cabinets.filter((c) => c.client_name.toLowerCase().includes(q));
+  }, [cabinets, searchQuery]);
+
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -194,11 +200,6 @@ export function ClientCabinetsManagement() {
     );
   }
 
-  const filteredCabinets = useMemo(() => {
-    if (!searchQuery.trim()) return cabinets;
-    const q = searchQuery.toLowerCase().trim();
-    return cabinets.filter((c) => c.client_name.toLowerCase().includes(q));
-  }, [cabinets, searchQuery]);
 
   return (
     <div className="space-y-4">
