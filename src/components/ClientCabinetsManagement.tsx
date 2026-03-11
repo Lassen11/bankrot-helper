@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ExternalLink, Copy, Link2, ChevronDown, ChevronUp, RefreshCw, Ban } from "lucide-react";
+import { ExternalLink, Copy, Link2, ChevronDown, ChevronUp, RefreshCw, Ban, Search } from "lucide-react";
 import { toast } from "sonner";
 import { BankruptcyStages } from "./BankruptcyStages";
 import { CabinetChatEmployee } from "./CabinetChatEmployee";
@@ -27,6 +27,7 @@ export function ClientCabinetsManagement() {
   const [cabinets, setCabinets] = useState<CabinetInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (user) fetchCabinets();
@@ -170,6 +171,12 @@ export function ClientCabinetsManagement() {
     }
   };
 
+  const filteredCabinets = useMemo(() => {
+    if (!searchQuery.trim()) return cabinets;
+    const q = searchQuery.toLowerCase().trim();
+    return cabinets.filter((c) => c.client_name.toLowerCase().includes(q));
+  }, [cabinets, searchQuery]);
+
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -193,10 +200,24 @@ export function ClientCabinetsManagement() {
     );
   }
 
+
   return (
     <div className="space-y-4">
       <EmployeeProfileEditor />
-      {cabinets.map((cab) => {
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Поиск по имени клиента..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        />
+      </div>
+      {filteredCabinets.length === 0 && searchQuery.trim() ? (
+        <p className="text-center text-muted-foreground text-sm py-4">Ничего не найдено</p>
+      ) : null}
+      {filteredCabinets.map((cab) => {
         const isExpanded = expandedId === cab.client_id;
         return (
           <Card key={cab.client_id}>
