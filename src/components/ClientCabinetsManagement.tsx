@@ -27,6 +27,7 @@ export function ClientCabinetsManagement() {
   const [cabinets, setCabinets] = useState<CabinetInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (user) fetchCabinets();
