@@ -172,9 +172,14 @@ export function ClientCabinetsManagement() {
   };
 
   const filteredCabinets = useMemo(() => {
-    if (!searchQuery.trim()) return cabinets;
-    const q = searchQuery.toLowerCase().trim();
-    return cabinets.filter((c) => c.client_name.toLowerCase().includes(q));
+    let result = [...cabinets];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((c) => c.client_name.toLowerCase().includes(q));
+    }
+    // Сортировка: кабинеты с непрочитанными сообщениями сверху
+    result.sort((a, b) => b.unread_messages - a.unread_messages);
+    return result;
   }, [cabinets, searchQuery]);
 
   if (loading) {
