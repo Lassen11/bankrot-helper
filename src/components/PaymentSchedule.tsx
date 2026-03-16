@@ -557,8 +557,17 @@ export const PaymentSchedule = ({
       const remainingPaymentsCount = Math.ceil(remainingAmount / monthlyPayment);
       
       // Для даты начинаем от ТЕКУЩЕЙ даты, а не от последнего выполненного платежа
-      // Это важно, чтобы следующий платеж был в текущем или следующем месяце
       const today = new Date();
+      
+      // Проверяем, есть ли уже оплаченный платёж в текущем месяце
+      const hasCompletedPaymentThisMonth = completedPayments?.some(p => {
+        if (p.payment_type === 'advance') return false; // Не считаем авансовые
+        const pDate = new Date(p.due_date);
+        return pDate.getFullYear() === today.getFullYear() && pDate.getMonth() === today.getMonth();
+      }) || false;
+      
+      // Если день платежа уже прошёл ИЛИ в этом месяце уже есть оплаченный платёж — начинаем со следующего месяца
+      const skipCurrentMonth = today.getDate() > paymentDay || hasCompletedPaymentThisMonth;
       
       console.log('Regenerating schedule:', {
         maxPaymentNumber,
@@ -566,20 +575,16 @@ export const PaymentSchedule = ({
         monthlyPayment,
         remainingPaymentsCount,
         startDate: today.toISOString(),
-        paymentDay
+        paymentDay,
+        hasCompletedPaymentThisMonth,
+        skipCurrentMonth
       });
 
       const paymentsToCreate = [];
 
       // Создаем ежемесячные платежи начиная с текущего/следующего месяца
       for (let i = 0; i < remainingPaymentsCount; i++) {
-        // Рассчитываем дату: если день платежа уже прошёл в этом месяце, начинаем со следующего
-        let monthOffset = i;
-        if (i === 0 && today.getDate() > paymentDay) {
-          monthOffset = 1; // Следующий месяц для первого платежа
-        } else if (i > 0) {
-          monthOffset = today.getDate() > paymentDay ? i + 1 : i;
-        }
+        const monthOffset = skipCurrentMonth ? i + 1 : i;
         
         const paymentDate = buildMonthlyDueDate(today, monthOffset);
 
