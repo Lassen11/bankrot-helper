@@ -72,7 +72,7 @@ const Index = () => {
       
       // Если не админ, показываем только своих клиентов
       if (!isAdmin) {
-        query = query.eq('user_id', user.id);
+        query = query.eq('employee_id', user.id);
       }
       
       const { data: allClients, error } = await query;
