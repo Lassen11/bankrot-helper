@@ -1,0 +1,1 @@
+UPDATE clients SET user_id = 'e4130eb0-d043-4a5c-9603-b95fccbc0735' WHERE employee_id = 'e4130eb0-d043-4a5c-9603-b95fccbc0735' AND user_id != 'e4130eb0-d043-4a5c-9603-b95fccbc0735';
