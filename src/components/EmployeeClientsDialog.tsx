@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fetchAdminUsers } from "@/lib/adminUsersCache";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
