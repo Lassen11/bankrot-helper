@@ -266,12 +266,28 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
 
       const newContractDate = editedContractDate ? format(editedContractDate, 'yyyy-MM-dd') : client.contract_date;
       
+      // Если первый взнос изменился, пересчитываем total_paid и remaining_amount
+      const firstPaymentChanged = editedClient.first_payment !== undefined && 
+        editedClient.first_payment !== client.first_payment;
+      
+      let recalcFields: Record<string, any> = {};
+      if (firstPaymentChanged) {
+        const diff = (editedClient.first_payment || 0) - (client.first_payment || 0);
+        const newTotalPaid = Math.max(0, (client.total_paid || 0) + diff);
+        const newRemainingAmount = Math.max(0, (finalContractAmount || client.contract_amount) - newTotalPaid);
+        recalcFields = {
+          total_paid: newTotalPaid,
+          remaining_amount: newRemainingAmount,
+        };
+      }
+
       const updateData = {
         ...editedClient,
         contract_amount: finalContractAmount,
         monthly_payment: finalMonthlyPayment,
         contract_date: newContractDate,
-        ...(contractDateChanged && { created_at: newContractDate })
+        ...(contractDateChanged && { created_at: newContractDate }),
+        ...recalcFields,
       };
 
       const { error } = await supabase
