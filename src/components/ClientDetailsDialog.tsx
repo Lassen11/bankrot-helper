@@ -86,13 +86,37 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     setLoading(true);
     try {
       // Получаем данные клиента
-      const { data: clientData, error: clientError } = await supabase
+      const { data, error: clientError } = await supabase
         .from('clients')
         .select('*')
         .eq('id', clientId)
         .single();
 
       if (clientError) throw clientError;
+
+      let clientData = data;
+
+      // Самовосстановление: первый взнос всегда должен входить в оплачено
+      if (clientData && (clientData.total_paid || 0) < (clientData.first_payment || 0)) {
+        const healedTotalPaid = clientData.first_payment || 0;
+        const healedRemainingAmount = Math.max(0, (clientData.contract_amount || 0) - healedTotalPaid);
+
+        const { error: healError } = await supabase
+          .from('clients')
+          .update({
+            total_paid: healedTotalPaid,
+            remaining_amount: healedRemainingAmount,
+          })
+          .eq('id', clientId);
+
+        if (!healError) {
+          clientData = {
+            ...clientData,
+            total_paid: healedTotalPaid,
+            remaining_amount: healedRemainingAmount,
+          };
+        }
+      }
 
       // Получаем информацию о сотруднике
       if (clientData.employee_id) {
