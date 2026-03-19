@@ -22,9 +22,9 @@ export const PaymentProgress = ({
     }).format(amount);
   };
 
-  // Используем totalPaid для обоих прогрессов (депозит и общий прогресс показывают одну сумму)
+  // Депозит использует deposit_paid, общий прогресс — totalPaid
   const mainProgress = contractAmount > 0 ? (totalPaid / contractAmount) * 100 : 0;
-  const depositProgress = depositTarget > 0 ? (totalPaid / depositTarget) * 100 : 0;
+  const depositProgress = depositTarget > 0 ? (depositPaid / depositTarget) * 100 : 0;
 
   return (
     <div className="space-y-6">
