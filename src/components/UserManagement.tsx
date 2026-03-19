@@ -101,31 +101,10 @@ export const UserManagement = ({ onUserUpdate }: UserManagementProps) => {
         throw new Error(`Не удалось получить роли пользователей: ${rolesError.message}`);
       }
 
-      // Получаем email адреса из Edge Function
+      // Получаем email адреса из кэша
       let authUsers = [];
       try {
-        const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
-          headers: {
-            'Authorization': `Bearer ${session.session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Ошибка Edge Function:', response.status, errorText);
-          
-          if (response.status === 401) {
-            throw new Error('Нет прав доступа. Убедитесь, что вы вошли как администратор.');
-          } else if (response.status === 403) {
-            throw new Error('Недостаточно прав. Только администраторы могут просматривать пользователей.');
-          } else {
-            throw new Error(`Ошибка сервера: ${response.status} - ${errorText}`);
-          }
-        }
-
-        const result = await response.json();
-        authUsers = result.users || [];
+        authUsers = await fetchAdminUsers();
       } catch (fetchError) {
         if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
           throw new Error('Ошибка сети. Проверьте интернет-соединение и попробуйте снова.');

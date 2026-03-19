@@ -471,20 +471,7 @@ export const AdminPanel = () => {
 
       let authUsers = [];
       try {
-        const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
-          headers: {
-            'Authorization': `Bearer ${session.session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          authUsers = result.users || [];
-        } else {
-          console.error('Ошибка получения данных пользователей:', response.statusText);
-          return;
-        }
+        authUsers = await fetchAdminUsers();
       } catch (fetchError) {
         console.error('Ошибка сети при получении пользователей:', fetchError);
         return;

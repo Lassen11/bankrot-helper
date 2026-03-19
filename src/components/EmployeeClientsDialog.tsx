@@ -78,17 +78,11 @@ export const EmployeeClientsDialog = ({
 
       if (profilesError) throw profilesError;
 
-      // Получаем также email пользователей через Edge Function
+      // Получаем также email пользователей через кэш
       try {
-        const response = await fetch(`https://gidvpxxfgvivjbzfpxcg.supabase.co/functions/v1/admin-users`, {
-          headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const { users } = await response.json();
+        const users = await fetchAdminUsers();
+        if (users.length > 0) {
+          const usersPlaceholder = { users }; // for compatibility
           
           const employeesWithEmails = (profilesData || []).map(profile => {
             const userWithEmail = users.find((u: any) => u.id === profile.user_id);

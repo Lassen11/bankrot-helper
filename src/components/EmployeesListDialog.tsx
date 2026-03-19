@@ -64,12 +64,9 @@ export const EmployeesListDialog = ({
 
       if (profilesError) throw profilesError;
 
-      // Получаем emails через edge function
-      const { data: usersData, error: usersError } = await supabase.functions.invoke('admin-users', {
-        body: { action: 'list' }
-      });
-
-      if (usersError) throw usersError;
+      // Получаем emails через кэш
+      const users = await fetchAdminUsers();
+      const usersData = { users };
 
       // Получаем клиентов для подсчёта
       const { data: clients, error: clientsError } = await supabase
