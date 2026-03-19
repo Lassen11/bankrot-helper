@@ -86,13 +86,37 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
     setLoading(true);
     try {
       // Получаем данные клиента
-      const { data: clientData, error: clientError } = await supabase
+      const { data, error: clientError } = await supabase
         .from('clients')
         .select('*')
         .eq('id', clientId)
         .single();
 
       if (clientError) throw clientError;
+
+      let clientData = data;
+
+      // Самовосстановление: первый взнос всегда должен входить в оплачено
+      if (clientData && (clientData.total_paid || 0) < (clientData.first_payment || 0)) {
+        const healedTotalPaid = clientData.first_payment || 0;
+        const healedRemainingAmount = Math.max(0, (clientData.contract_amount || 0) - healedTotalPaid);
+
+        const { error: healError } = await supabase
+          .from('clients')
+          .update({
+            total_paid: healedTotalPaid,
+            remaining_amount: healedRemainingAmount,
+          })
+          .eq('id', clientId);
+
+        if (!healError) {
+          clientData = {
+            ...clientData,
+            total_paid: healedTotalPaid,
+            remaining_amount: healedRemainingAmount,
+          };
+        }
+      }
 
       // Получаем информацию о сотруднике
       if (clientData.employee_id) {
@@ -272,8 +296,8 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       
       let recalcFields: Record<string, any> = {};
       if (firstPaymentChanged) {
-        const diff = (editedClient.first_payment || 0) - (client.first_payment || 0);
-        const newTotalPaid = Math.max(0, (client.total_paid || 0) + diff);
+        const paidBeyondFirstPayment = Math.max(0, (client.total_paid || 0) - (client.first_payment || 0));
+        const newTotalPaid = paidBeyondFirstPayment + (editedClient.first_payment || 0);
         const newRemainingAmount = Math.max(0, (finalContractAmount || client.contract_amount) - newTotalPaid);
         recalcFields = {
           total_paid: newTotalPaid,
@@ -343,14 +367,18 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       const paymentsToCreate = [];
       const startDate = new Date(editedContractDate);
       
-      // Авансовый платеж
+      const firstPaymentAmount = editedClient.first_payment || client.first_payment;
+
+      // Авансовый платеж всегда создаётся как оплаченный
       paymentsToCreate.push({
         client_id: clientId,
-        user_id: client.employee_id, // Используем ID сотрудника-владельца клиента
+        user_id: client.employee_id,
         payment_number: 0,
-        original_amount: editedClient.first_payment || client.first_payment,
+        original_amount: firstPaymentAmount,
         due_date: format(startDate, 'yyyy-MM-dd'),
-        payment_type: 'advance'
+        payment_type: 'advance',
+        is_completed: true,
+        completed_at: format(startDate, 'yyyy-MM-dd'),
       });
 
       // Ежемесячные платежи
@@ -369,7 +397,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
         
         paymentsToCreate.push({
           client_id: clientId,
-          user_id: client.employee_id, // Используем ID сотрудника-владельца клиента
+          user_id: client.employee_id,
           payment_number: i,
           original_amount: monthlyAmount,
           due_date: format(paymentDate, 'yyyy-MM-dd'),
@@ -383,13 +411,14 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
 
       if (insertError) throw insertError;
 
-      // Сбрасываем total_paid и deposit_paid
+      // После пересоздания графика первый взнос остаётся оплаченным
+      const finalContractAmount = editedClient.contract_amount || client.contract_amount;
       const { error: resetError } = await supabase
         .from('clients')
         .update({ 
-          total_paid: 0, 
-          deposit_paid: 0,
-          remaining_amount: editedClient.contract_amount || client.contract_amount
+          total_paid: firstPaymentAmount,
+          deposit_paid: editedClient.deposit_paid ?? client.deposit_paid ?? firstPaymentAmount,
+          remaining_amount: Math.max(0, finalContractAmount - firstPaymentAmount)
         })
         .eq('id', clientId);
 
