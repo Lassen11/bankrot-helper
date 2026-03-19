@@ -208,6 +208,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       monthly_payment: client.monthly_payment,
       installment_period: client.installment_period,
       payment_day: client.payment_day,
+      deposit_paid: client.deposit_paid,
       deposit_target: client.deposit_target,
       contract_date: client.contract_date
     });
