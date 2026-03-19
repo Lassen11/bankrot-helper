@@ -208,6 +208,7 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       monthly_payment: client.monthly_payment,
       installment_period: client.installment_period,
       payment_day: client.payment_day,
+      deposit_paid: client.deposit_paid,
       deposit_target: client.deposit_target,
       contract_date: client.contract_date
     });
@@ -844,7 +845,15 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Депозит оплачен</p>
-                    <p className="font-medium">{formatAmount(client.deposit_paid || 0)}</p>
+                    {isEditingClient ? (
+                      <Input
+                        type="number"
+                        value={editedClient.deposit_paid ?? ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, deposit_paid: parseFloat(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="font-medium">{formatAmount(client.deposit_paid || 0)}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Цель депозита</p>
