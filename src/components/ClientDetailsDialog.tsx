@@ -296,8 +296,8 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
       
       let recalcFields: Record<string, any> = {};
       if (firstPaymentChanged) {
-        const diff = (editedClient.first_payment || 0) - (client.first_payment || 0);
-        const newTotalPaid = Math.max(0, (client.total_paid || 0) + diff);
+        const paidBeyondFirstPayment = Math.max(0, (client.total_paid || 0) - (client.first_payment || 0));
+        const newTotalPaid = paidBeyondFirstPayment + (editedClient.first_payment || 0);
         const newRemainingAmount = Math.max(0, (finalContractAmount || client.contract_amount) - newTotalPaid);
         recalcFields = {
           total_paid: newTotalPaid,
