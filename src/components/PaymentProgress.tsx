@@ -43,7 +43,7 @@ export const PaymentProgress = ({
         <div className="flex justify-between text-sm gap-2">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Внесено:</span>
-            <span className="text-muted-foreground">{formatAmount(totalPaid)}</span>
+            <span className="text-muted-foreground">{formatAmount(depositPaid)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Цель:</span>
