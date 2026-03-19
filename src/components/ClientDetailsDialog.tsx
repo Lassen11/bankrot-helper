@@ -845,7 +845,15 @@ export const ClientDetailsDialog = ({ clientId, open, onOpenChange }: ClientDeta
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Депозит оплачен</p>
-                    <p className="font-medium">{formatAmount(client.deposit_paid || 0)}</p>
+                    {isEditingClient ? (
+                      <Input
+                        type="number"
+                        value={editedClient.deposit_paid ?? ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, deposit_paid: parseFloat(e.target.value) })}
+                      />
+                    ) : (
+                      <p className="font-medium">{formatAmount(client.deposit_paid || 0)}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Цель депозита</p>
