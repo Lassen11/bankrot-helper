@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { 
   Upload, 
@@ -36,6 +37,7 @@ export function ReceiptManager({ clientId, onReceiptsChange }: ReceiptManagerPro
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [receiptToDelete, setReceiptToDelete] = useState<Receipt | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     fetchReceipts();
@@ -46,12 +48,17 @@ export function ReceiptManager({ clientId, onReceiptsChange }: ReceiptManagerPro
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('payment_receipts')
         .select('*')
-        .eq('client_id', clientId)
-        .eq('user_id', user.user.id)
-        .order('uploaded_at', { ascending: false });
+        .eq('client_id', clientId);
+
+      // Админ видит все чеки, сотрудник — только свои
+      if (!isAdmin) {
+        query = query.eq('user_id', user.user.id);
+      }
+
+      const { data, error } = await query.order('uploaded_at', { ascending: false });
 
       if (error) {
         toast.error('Ошибка при загрузке чеков');
