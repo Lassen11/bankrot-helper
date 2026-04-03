@@ -39,9 +39,13 @@ export function ReceiptManager({ clientId, onReceiptsChange }: ReceiptManagerPro
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin } = useUserRole();
 
+  const { isAdmin, loading: roleLoading } = useUserRole();
+
   useEffect(() => {
-    fetchReceipts();
-  }, [clientId]);
+    if (!roleLoading) {
+      fetchReceipts();
+    }
+  }, [clientId, roleLoading, isAdmin]);
 
   const fetchReceipts = async () => {
     try {
