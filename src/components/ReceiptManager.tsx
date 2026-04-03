@@ -37,7 +37,6 @@ export function ReceiptManager({ clientId, onReceiptsChange }: ReceiptManagerPro
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [receiptToDelete, setReceiptToDelete] = useState<Receipt | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { isAdmin } = useUserRole();
 
   const { isAdmin, loading: roleLoading } = useUserRole();
 
