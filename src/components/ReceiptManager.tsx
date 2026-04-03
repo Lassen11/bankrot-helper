@@ -48,12 +48,17 @@ export function ReceiptManager({ clientId, onReceiptsChange }: ReceiptManagerPro
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('payment_receipts')
         .select('*')
-        .eq('client_id', clientId)
-        .eq('user_id', user.user.id)
-        .order('uploaded_at', { ascending: false });
+        .eq('client_id', clientId);
+
+      // Админ видит все чеки, сотрудник — только свои
+      if (!isAdmin) {
+        query = query.eq('user_id', user.user.id);
+      }
+
+      const { data, error } = await query.order('uploaded_at', { ascending: false });
 
       if (error) {
         toast.error('Ошибка при загрузке чеков');
