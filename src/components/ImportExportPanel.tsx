@@ -50,7 +50,7 @@ export const ImportExportPanel = () => {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // Получаем клиентов
+      // Получаем клиентов (все, включая завершённых/приостановленных)
       const { data: clients, error } = await supabase
         .from('clients')
         .select('*')
@@ -79,64 +79,126 @@ export const ImportExportPanel = () => {
         return acc;
       }, {} as Record<string, string>);
 
-      // Подготавливаем данные для Excel
+      // Получаем все платежи по этим клиентам (постранично, чтобы обойти лимит 1000)
+      const clientIds = clients.map(c => c.id);
+      let allPayments: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data: page, error: payErr } = await supabase
+          .from('payments')
+          .select('*')
+          .in('client_id', clientIds)
+          .order('client_id', { ascending: true })
+          .order('payment_number', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (payErr) throw payErr;
+        if (!page || page.length === 0) break;
+        allPayments = allPayments.concat(page);
+        if (page.length < pageSize) break;
+      }
+
+      // Группируем платежи по клиенту
+      const paymentsByClient: Record<string, any[]> = {};
+      for (const p of allPayments) {
+        (paymentsByClient[p.client_id] ||= []).push(p);
+      }
+
+      const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('ru-RU') : '';
+      const fmtDateTime = (d: any) => d ? new Date(d).toLocaleString('ru-RU') : '';
+
+      // === Лист 1: Клиенты (все поля) ===
       const exportData = clients.map(client => ({
         'ID': client.id,
         'ФИО': client.full_name,
         'Сотрудник': profilesMap[client.employee_id] || 'Не указан',
         'ID Сотрудника': client.employee_id,
-        'Дата договора': new Date(client.contract_date).toLocaleDateString('ru-RU'),
+        'Менеджер': client.manager || '',
         'Город': client.city || '',
         'Источник': client.source || '',
+        'Дата договора': fmtDate(client.contract_date),
         'Сумма договора': client.contract_amount,
         'Период рассрочки (месяцы)': client.installment_period,
         'Первый взнос': client.first_payment,
         'Ежемесячный платеж': client.monthly_payment,
+        'День платежа': client.payment_day,
         'Остаток к доплате': client.remaining_amount,
         'Всего выплачено': client.total_paid,
         'Депозит выплачен': client.deposit_paid,
         'Цель депозита': client.deposit_target,
-        'День платежа': client.payment_day,
-        'Дата создания': new Date(client.created_at).toLocaleDateString('ru-RU'),
-        'Дата обновления': new Date(client.updated_at).toLocaleDateString('ru-RU')
+        'Завершен': client.is_terminated ? 'Да' : 'Нет',
+        'Причина завершения': client.termination_reason || '',
+        'Дата завершения': fmtDateTime(client.terminated_at),
+        'Приостановлен': client.is_suspended ? 'Да' : 'Нет',
+        'Причина приостановки': client.suspension_reason || '',
+        'Дата приостановки': fmtDateTime(client.suspended_at),
+        'Дата выполнения': fmtDateTime(client.completed_at),
+        'Кол-во платежей': (paymentsByClient[client.id] || []).length,
+        'Выполнено платежей': (paymentsByClient[client.id] || []).filter(p => p.is_completed).length,
+        'Дата создания': fmtDateTime(client.created_at),
+        'Дата обновления': fmtDateTime(client.updated_at),
       }));
 
-      // Создаем книгу Excel
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(exportData);
-
-      // Автоматически настраиваем ширину колонок
-      const colWidths = [
-        { wch: 20 }, // ID
-        { wch: 25 }, // ФИО
-        { wch: 20 }, // Сотрудник
-        { wch: 20 }, // ID Сотрудника
-        { wch: 15 }, // Дата договора
-        { wch: 20 }, // Город
-        { wch: 20 }, // Источник
-        { wch: 15 }, // Сумма договора
-        { wch: 15 }, // Период рассрочки
-        { wch: 15 }, // Первый взнос
-        { wch: 18 }, // Ежемесячный платеж
-        { wch: 18 }, // Остаток к доплате
-        { wch: 15 }, // Всего выплачено
-        { wch: 15 }, // Депозит выплачен
-        { wch: 15 }, // Цель депозита
-        { wch: 12 }, // День платежа
-        { wch: 15 }, // Дата создания
-        { wch: 15 }  // Дата обновления
-      ];
-      ws['!cols'] = colWidths;
-
+      ws['!cols'] = Object.keys(exportData[0] || {}).map(() => ({ wch: 18 }));
       XLSX.utils.book_append_sheet(wb, ws, 'Клиенты');
 
-      // Скачиваем файл
+      // === Лист 2: Все платежи (длинный формат) ===
+      const paymentsRows = allPayments.map(p => {
+        const c = clients.find(cl => cl.id === p.client_id);
+        return {
+          'ID платежа': p.id,
+          'ID клиента': p.client_id,
+          'Клиент': c?.full_name || '',
+          'Сотрудник': c ? (profilesMap[c.employee_id] || 'Не указан') : '',
+          '№ платежа': p.payment_number,
+          'Тип': p.payment_type === 'advance' ? 'Авансовый' : (p.payment_type === 'first' ? 'Первый' : 'Ежемесячный'),
+          'Дата платежа': fmtDate(p.due_date),
+          'Сумма (план)': p.original_amount,
+          'Сумма (факт)': p.custom_amount ?? p.original_amount,
+          'Счёт': p.account || '',
+          'Выполнен': p.is_completed ? 'Да' : 'Нет',
+          'Дата выполнения': fmtDateTime(p.completed_at),
+          'Создан': fmtDateTime(p.created_at),
+          'Обновлён': fmtDateTime(p.updated_at),
+        };
+      });
+      const wsPayments = XLSX.utils.json_to_sheet(paymentsRows);
+      wsPayments['!cols'] = Object.keys(paymentsRows[0] || {}).map(() => ({ wch: 18 }));
+      XLSX.utils.book_append_sheet(wb, wsPayments, 'Платежи');
+
+      // === Лист 3: Клиенты с разбивкой по платежам (широкий формат) ===
+      const maxPayments = Math.max(0, ...Object.values(paymentsByClient).map(arr => arr.length));
+      const wideRows = clients.map(client => {
+        const row: Record<string, any> = {
+          'ФИО': client.full_name,
+          'Сотрудник': profilesMap[client.employee_id] || 'Не указан',
+          'Дата договора': fmtDate(client.contract_date),
+          'Сумма договора': client.contract_amount,
+          'Период (мес)': client.installment_period,
+          'Ежемесячный платеж': client.monthly_payment,
+          'Всего выплачено': client.total_paid,
+          'Остаток': client.remaining_amount,
+        };
+        const list = (paymentsByClient[client.id] || []).slice().sort((a, b) => (a.payment_number || 0) - (b.payment_number || 0));
+        for (let i = 0; i < maxPayments; i++) {
+          const p = list[i];
+          row[`Платёж ${i + 1} — дата`] = p ? fmtDate(p.due_date) : '';
+          row[`Платёж ${i + 1} — сумма`] = p ? (p.custom_amount ?? p.original_amount) : '';
+          row[`Платёж ${i + 1} — статус`] = p ? (p.is_completed ? 'Оплачен' : 'Ожидает') : '';
+        }
+        return row;
+      });
+      const wsWide = XLSX.utils.json_to_sheet(wideRows);
+      wsWide['!cols'] = Object.keys(wideRows[0] || {}).map(() => ({ wch: 18 }));
+      XLSX.utils.book_append_sheet(wb, wsWide, 'Клиенты + платежи');
+
       const fileName = `clients_export_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
       toast({
         title: "Экспорт завершен",
-        description: `Данные ${clients.length} клиентов экспортированы в файл ${fileName}`,
+        description: `Клиентов: ${clients.length}, платежей: ${allPayments.length}. Файл: ${fileName}`,
       });
     } catch (error) {
       console.error('Export error:', error);
