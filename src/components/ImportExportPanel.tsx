@@ -847,6 +847,45 @@ export const ImportExportPanel = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Экспорт клиентов без оплаты за месяц */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Не внесли оплату за месяц
+            </CardTitle>
+            <CardDescription>
+              Выгрузить в Excel клиентов без оплаты за выбранный месяц
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="unpaid-month">Месяц</Label>
+              <Input
+                id="unpaid-month"
+                type="month"
+                value={unpaidMonth}
+                onChange={(e) => setUnpaidMonth(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <Button
+              onClick={handleExportUnpaid}
+              disabled={isExportingUnpaid}
+              className="w-full"
+            >
+              {isExportingUnpaid ? (
+                <>Формируем...</>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Скачать Excel
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Инструкции */}
