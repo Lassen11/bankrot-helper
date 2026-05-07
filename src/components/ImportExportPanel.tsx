@@ -40,12 +40,127 @@ export const ImportExportPanel = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSyncingClients, setIsSyncingClients] = useState(false);
+  const [isExportingUnpaid, setIsExportingUnpaid] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [syncMonth, setSyncMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [unpaidMonth, setUnpaidMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const handleExportUnpaid = async () => {
+    setIsExportingUnpaid(true);
+    try {
+      const [year, monthNum] = unpaidMonth.split('-').map(Number);
+      const startDate = `${unpaidMonth}-01`;
+      const endDay = new Date(year, monthNum, 0).getDate();
+      const endDate = `${unpaidMonth}-${String(endDay).padStart(2, '0')}`;
+
+      // Получаем все платежи за выбранный месяц (исключая авансовые с payment_number=0)
+      let allPayments: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data: page, error } = await supabase
+          .from('payments')
+          .select('*')
+          .gte('due_date', startDate)
+          .lte('due_date', endDate)
+          .neq('payment_number', 0)
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!page || page.length === 0) break;
+        allPayments = allPayments.concat(page);
+        if (page.length < pageSize) break;
+      }
+
+      // Группируем по клиенту: считаем неоплаченные платежи
+      const clientPayments: Record<string, any[]> = {};
+      for (const p of allPayments) {
+        (clientPayments[p.client_id] ||= []).push(p);
+      }
+
+      // Клиенты, у которых есть хотя бы один НЕоплаченный платёж в этом месяце
+      const unpaidClientIds = Object.entries(clientPayments)
+        .filter(([, list]) => list.some(p => !p.is_completed))
+        .map(([id]) => id);
+
+      if (unpaidClientIds.length === 0) {
+        toast({
+          title: "Нет данных",
+          description: "Все клиенты внесли оплату за выбранный месяц",
+        });
+        return;
+      }
+
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('*')
+        .in('id', unpaidClientIds);
+      if (clientsError) throw clientsError;
+
+      const employeeIds = [...new Set((clients || []).map(c => c.employee_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', employeeIds);
+      const profilesMap = (profiles || []).reduce((acc, p) => {
+        acc[p.user_id] = p.full_name || 'Без имени';
+        return acc;
+      }, {} as Record<string, string>);
+
+      const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('ru-RU') : '';
+
+      const rows = (clients || []).map(client => {
+        const list = clientPayments[client.id] || [];
+        const unpaid = list.filter(p => !p.is_completed);
+        const paid = list.filter(p => p.is_completed);
+        const unpaidSum = unpaid.reduce((s, p) => s + Number(p.custom_amount ?? p.original_amount ?? 0), 0);
+        const paidSum = paid.reduce((s, p) => s + Number(p.custom_amount ?? p.original_amount ?? 0), 0);
+        const dueDates = unpaid.map(p => fmtDate(p.due_date)).join(', ');
+        return {
+          'ФИО': client.full_name,
+          'Сотрудник': profilesMap[client.employee_id] || 'Не указан',
+          'Телефон/Менеджер': client.manager || '',
+          'Город': client.city || '',
+          'Сумма договора': client.contract_amount,
+          'Ежемесячный платёж': client.monthly_payment,
+          'Всего выплачено': client.total_paid,
+          'Остаток': client.remaining_amount,
+          'Неоплаченных платежей': unpaid.length,
+          'Сумма неоплаченных': unpaidSum,
+          'Оплачено в этом месяце': paidSum,
+          'Даты неоплаченных платежей': dueDates,
+          'Статус': client.is_terminated ? 'Расторгнут' : (client.is_suspended ? 'Приостановлен' : 'Активен'),
+        };
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = Object.keys(rows[0] || {}).map(() => ({ wch: 20 }));
+      XLSX.utils.book_append_sheet(wb, ws, `Неоплатившие ${unpaidMonth}`);
+
+      const fileName = `unpaid_clients_${unpaidMonth}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      toast({
+        title: "Экспорт завершён",
+        description: `Клиентов без оплаты: ${rows.length}. Файл: ${fileName}`,
+      });
+    } catch (error) {
+      console.error('Unpaid export error:', error);
+      toast({
+        title: "Ошибка экспорта",
+        description: "Не удалось сформировать отчёт",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingUnpaid(false);
+    }
+  };
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -727,6 +842,45 @@ export const ImportExportPanel = () => {
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Синхронизировать
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Экспорт клиентов без оплаты за месяц */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Не внесли оплату за месяц
+            </CardTitle>
+            <CardDescription>
+              Выгрузить в Excel клиентов без оплаты за выбранный месяц
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="unpaid-month">Месяц</Label>
+              <Input
+                id="unpaid-month"
+                type="month"
+                value={unpaidMonth}
+                onChange={(e) => setUnpaidMonth(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <Button
+              onClick={handleExportUnpaid}
+              disabled={isExportingUnpaid}
+              className="w-full"
+            >
+              {isExportingUnpaid ? (
+                <>Формируем...</>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Скачать Excel
                 </>
               )}
             </Button>
